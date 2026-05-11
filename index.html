@@ -1,0 +1,1084 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>小团快跑模拟器 v18.1.4</title>
+  <style>
+    :root { --bg:#f8fafc; --card:#fff; --text:#0f172a; --muted:#64748b; --border:#e2e8f0; --dark:#111827; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", Arial, sans-serif; background:var(--bg); color:var(--text); }
+    .wrap { max-width: 1280px; margin:0 auto; padding:24px; }
+    h1 { margin:0; font-size:30px; }
+    p { color:var(--muted); margin:8px 0 0; }
+    .grid { display:grid; gap:16px; }
+    .main { grid-template-columns: minmax(0, 1fr) 360px; margin-top:20px; align-items:start; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:18px; box-shadow:0 1px 3px rgba(15,23,42,.06); padding:16px; }
+    .title { font-weight:700; display:flex; gap:8px; align-items:center; margin-bottom:12px; }
+    label { display:block; font-size:14px; color:#334155; margin:12px 0 6px; }
+    input[type="number"], input[type="text"] { width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; background:white; }
+    button { border:0; border-radius:12px; padding:10px 12px; font-weight:700; cursor:pointer; background:#0f172a; color:white; }
+    button.secondary { background:white; color:#0f172a; border:1px solid #cbd5e1; }
+    button.ghost { background:transparent; color:#0f172a; }
+    .btnrow { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+    .check { display:flex; gap:8px; align-items:center; border:1px solid var(--border); background:#fff; padding:10px; border-radius:12px; margin:12px 0; }
+    .notice { background:#f1f5f9; border-radius:12px; padding:10px; font-size:13px; color:#475569; line-height:1.55; margin-top:10px; }
+    .result-row { border:1px solid var(--border); background:#fff; border-radius:14px; padding:12px; margin-bottom:10px; }
+    .result-head { display:flex; justify-content:space-between; align-items:center; font-weight:700; }
+    .bar { height:12px; border-radius:99px; background:#f1f5f9; overflow:hidden; margin:8px 0 4px; }
+    .bar > div { height:100%; background:#0f172a; border-radius:99px; }
+    .small { font-size:12px; color:var(--muted); }
+    .progress-wrap { border:1px solid var(--border); background:#fff; border-radius:14px; padding:12px; margin-bottom:12px; }
+    .progress-label { display:flex; justify-content:space-between; font-size:13px; color:#475569; margin-bottom:8px; }
+    .progress-bar { height:14px; border-radius:99px; background:#e2e8f0; overflow:hidden; }
+    .progress-bar > div { height:100%; width:0%; background:#0f172a; transition:width .08s linear; }
+    .board { grid-template-columns: repeat(8, 1fr); margin-top:10px; }
+    .tile { min-height:96px; border:1px solid var(--border); border-radius:16px; padding:8px; background:#fff; }
+    .tile-head { display:flex; justify-content:space-between; font-size:12px; gap:4px; }
+    .pieces { display:flex; flex-wrap:wrap; gap:4px; margin-top:9px; }
+    .piece { display:inline-flex; min-width:28px; height:26px; padding:0 8px; align-items:center; justify-content:center; border-radius:999px; border:1px solid; font-size:12px; font-weight:800; overflow:hidden; }
+    .piece-img { width:34px; height:34px; padding:0; border-width:2px; background:white; box-shadow:0 1px 4px rgba(15,23,42,.18); }
+    .piece-img img { width:100%; height:100%; object-fit:contain; display:block; border-radius:999px; }
+    .piece-moving { outline:3px solid #f59e0b; box-shadow:0 0 0 4px rgba(245,158,11,.18), 0 6px 14px rgba(15,23,42,.18); transform:scale(1.08); transition:transform .18s ease; }
+    .king-moving { outline:3px solid #f59e0b; }
+    .result-title { display:flex; align-items:center; gap:8px; }
+    .result-avatar { width:32px; height:32px; border-radius:999px; object-fit:contain; border:2px solid #cbd5e1; background:white; }
+    .king { background:#000; color:#fff; border-color:#000; }
+    .roccia { background:#fef9c3; border-color:#facc15; }
+    .cartethyia { background:#ffedd5; border-color:#fb923c; }
+    .cantarella { background:#e0f2fe; border-color:#38bdf8; }
+    .danjin { background:#d1fae5; border-color:#34d399; }
+    .camellya { background:#fce7f3; border-color:#f472b6; }
+    .phoebe { background:#f1f5f9; border-color:#94a3b8; }
+    .start { background:#fffbeb; border-color:#fbbf24; }
+    .push { background:#ecfdf5; border-color:#34d399; }
+    .block { background:#fff1f2; border-color:#fb7185; }
+    .rift { background:#eef2ff; border-color:#818cf8; }
+    .log { max-height:340px; overflow:auto; background:#020617; color:#e2e8f0; border-radius:14px; padding:14px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size:12px; line-height:1.7; }
+    .current { background:#fff; border:1px solid var(--border); border-radius:12px; padding:10px; font-size:14px; }
+
+    .bracket { grid-template-columns: 1.1fr .9fr .9fr; align-items:start; }
+    .group-card { border:1px solid var(--border); border-radius:16px; background:#fff; overflow:hidden; }
+    .group-head { background:#2563eb; color:white; font-weight:800; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; }
+    .group-body { padding:12px; }
+    .avatar-row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    .bracket-avatar { width:52px; height:52px; border-radius:14px; border:2px solid #dbeafe; background:white; object-fit:contain; box-shadow:0 1px 4px rgba(15,23,42,.14); }
+    .adv-card { border:1px dashed #cbd5e1; border-radius:16px; background:#f8fafc; padding:12px; min-height:138px; }
+    .adv-head { font-weight:800; margin-bottom:10px; color:#334155; }
+    .placeholder-avatar { width:52px; height:52px; border-radius:999px; border:2px dashed #cbd5e1; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-weight:800; background:#fff; }
+    .today-panel { border:1px solid #fde68a; background:#fffbeb; border-radius:16px; padding:14px; }
+    .today-list { display:grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap:8px; margin-top:10px; }
+    .today-slot { border:1px solid #fcd34d; border-radius:14px; background:white; padding:8px; text-align:center; min-height:88px; }
+    .today-rank { font-size:12px; color:#92400e; font-weight:800; }
+    .today-name { margin-top:6px; font-size:13px; color:#334155; }
+
+    .update-card { margin-top:16px; border:1px solid #bfdbfe; background:linear-gradient(135deg,#eff6ff,#fff); border-radius:18px; padding:0; overflow:hidden; }
+    .update-card summary { list-style:none; cursor:pointer; padding:14px 16px; }
+    .update-card summary::-webkit-details-marker { display:none; }
+    .update-card[open] summary { border-bottom:1px solid #dbeafe; }
+    .update-title { font-weight:900; color:#1d4ed8; display:flex; align-items:center; gap:8px; margin-bottom:0; }
+    .update-title::after { content:'点击展开'; margin-left:auto; font-size:12px; color:#64748b; font-weight:700; }
+    .update-card[open] .update-title::after { content:'点击收起'; }
+    .update-card .update-list { padding:12px 20px 14px 36px; }
+    .update-list { margin:0; padding-left:20px; color:#334155; line-height:1.7; font-size:14px; }
+    .preset-btn { background:#2563eb; margin-top:8px; width:100%; }
+    .today-note { margin-top:8px; padding:8px 10px; background:#fff7ed; border:1px solid #fed7aa; border-radius:12px; color:#9a3412; font-size:12px; line-height:1.5; }
+    .tourney { position:relative; overflow:hidden; border-radius:22px; border:1px solid #93c5fd; background:linear-gradient(135deg, rgba(15,23,42,.88), rgba(30,64,175,.68)), radial-gradient(circle at 25% 20%, rgba(96,165,250,.22), transparent 34%), #0f172a; padding:18px; color:#eaf2ff; }
+    .stage-tabs { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:18px; }
+    .stage-tab { border:2px solid rgba(226,232,240,.34); background:rgba(15,23,42,.62); color:#cbd5e1; border-radius:18px; padding:10px 12px; text-align:center; font-weight:900; box-shadow: inset 0 -3px 0 rgba(255,255,255,.08); }
+    .stage-tab.active { background:linear-gradient(135deg,#2563eb,#1d4ed8); color:white; border-color:#60a5fa; box-shadow:0 8px 20px rgba(37,99,235,.35), inset 0 -3px 0 rgba(30,64,175,.55); }
+    .stage-tab b { display:block; font-size:17px; }
+    .stage-tab span { display:block; font-size:13px; opacity:.9; margin-top:2px; }
+    .tourney-grid { display:grid; grid-template-columns:1.08fr .92fr; gap:18px; align-items:start; }
+    .tourney-left, .tourney-right { display:grid; gap:14px; }
+    .game-card { overflow:hidden; border-radius:16px; border:1px solid rgba(147,197,253,.45); background:rgba(248,250,252,.94); color:#0f172a; box-shadow:0 10px 24px rgba(2,6,23,.22); position:relative; }
+    .game-card::before { content:""; position:absolute; inset:-1px; border-radius:16px; pointer-events:none; box-shadow:0 0 0 2px rgba(96,165,250,.18) inset; }
+    .game-head { padding:10px 14px; background:linear-gradient(135deg,#3b82f6,#2563eb); color:white; font-weight:900; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .game-head.red { background:linear-gradient(135deg,#ef4444,#dc2626); }
+    .game-head.purple { background:linear-gradient(135deg,#8b5cf6,#7c3aed); }
+    .game-head.dark { background:linear-gradient(135deg,#334155,#1e293b); }
+    .game-body { padding:12px 14px; }
+    .game-footer { margin-top:10px; padding:7px 10px; border-radius:999px; background:#334155; color:white; display:flex; justify-content:space-between; font-size:13px; font-weight:800; }
+    .avatar-track { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .slot-wrap { position:relative; text-align:center; }
+    .slot-wrap .slot-label { margin-top:4px; font-size:11px; color:#64748b; font-weight:800; white-space:nowrap; }
+    .game-avatar { width:54px; height:54px; border-radius:16px; object-fit:contain; background:white; border:2px solid #dbeafe; box-shadow:0 2px 8px rgba(15,23,42,.14); }
+    .game-avatar.advanced { border-color:#fbbf24; box-shadow:0 0 0 3px rgba(251,191,36,.22), 0 4px 10px rgba(15,23,42,.14); }
+    .game-avatar.farewell { border-color:#a78bfa; box-shadow:0 0 0 3px rgba(167,139,250,.22), 0 4px 10px rgba(15,23,42,.14); }
+    .game-avatar.pending { opacity:.5; filter:grayscale(.75); }
+    .q-slot { width:54px; height:54px; border-radius:999px; border:3px solid #d1d5db; background:rgba(255,255,255,.82); display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:28px; font-weight:900; box-shadow:inset 0 0 0 3px rgba(148,163,184,.12); }
+    .flow-note { color:#cbd5e1; font-size:12px; line-height:1.6; margin-top:8px; }
+    .status-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:999px; background:#ecfdf5; color:#047857; font-size:11px; font-weight:900; margin-left:6px; }
+    .status-badge.wait { background:#f1f5f9; color:#64748b; }
+    .result-list { display:grid; gap:8px; margin-top:10px; }
+    .rank-row { display:flex; align-items:center; gap:10px; padding:8px 10px; border:1px solid #e2e8f0; border-radius:14px; background:white; }
+    .rank-row img { width:38px; height:38px; object-fit:contain; border-radius:12px; border:1px solid #dbeafe; }
+    .rank-num { width:28px; height:28px; border-radius:999px; display:flex; align-items:center; justify-content:center; background:#eff6ff; color:#1d4ed8; font-weight:900; }
+    .rank-name { flex:1; font-weight:900; }
+    .rank-tag { font-size:12px; font-weight:900; padding:3px 8px; border-radius:999px; }
+    .rank-tag.adv { color:#047857; background:#d1fae5; }
+    .rank-tag.fare { color:#6d28d9; background:#ede9fe; }
+    @media (max-width: 900px) { .stage-tabs { grid-template-columns:1fr; } .tourney-grid { grid-template-columns:1fr; } }
+
+
+    .round-dice-panel{margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:16px;background:#f8fafc;}
+    .round-dice-title{display:flex;justify-content:space-between;gap:10px;align-items:center;font-weight:700;margin-bottom:10px;}
+    .round-dice-sub{font-size:12px;color:var(--muted);font-weight:500;}
+    .round-dice-list{display:flex;gap:10px;overflow-x:auto;padding-bottom:3px;}
+    .round-dice-card{min-width:104px;border:1px solid var(--border);border-radius:14px;background:#fff;padding:8px;text-align:center;position:relative;box-shadow:0 1px 2px rgba(15,23,42,.04);}
+    .round-dice-card.current{border-color:#7c3aed;box-shadow:0 0 0 3px rgba(124,58,237,.16);}
+    .round-dice-card.done{opacity:.68;background:#f1f5f9;}
+    .round-dice-card .avatar{width:30px;height:30px;border-radius:999px;object-fit:cover;border:1px solid var(--border);vertical-align:middle;margin-right:4px;}
+    .round-dice-name{display:flex;justify-content:center;align-items:center;font-size:12px;font-weight:700;white-space:nowrap;}
+    .round-dice-symbol{font-size:38px;line-height:1;margin:5px 0;color:#111827;}
+    .round-dice-meta{font-size:11px;color:var(--muted);min-height:28px;}
+    .round-dice-card.min-ok{border-color:#22c55e;box-shadow:0 0 0 2px rgba(34,197,94,.18);}
+    .round-dice-card.invalid-note{border-color:#f59e0b;}
+
+    @media (max-width: 900px) { .bracket { grid-template-columns:1fr; } .today-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+    .dice-panel { margin-top:12px; border:1px solid #ddd6fe; background:linear-gradient(135deg,#faf5ff,#fff); border-radius:16px; padding:12px; }
+    .dice-top { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .dice-left { display:flex; align-items:center; gap:10px; min-width:0; }
+    .dice-cube { width:56px; height:56px; border-radius:14px; display:flex; align-items:center; justify-content:center; background:#fff; border:2px solid #7c3aed; box-shadow:0 4px 12px rgba(124,58,237,.18); font-size:30px; font-weight:900; color:#4c1d95; flex:0 0 auto; }
+    .dice-cube.shake { animation:diceShake .38s ease; }
+    @keyframes diceShake { 0%{transform:rotate(0) scale(1)} 20%{transform:rotate(-10deg) scale(1.08)} 45%{transform:rotate(12deg) scale(.96)} 70%{transform:rotate(-6deg) scale(1.04)} 100%{transform:rotate(0) scale(1)} }
+    .dice-actor { font-weight:900; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .dice-sub { font-size:12px; color:#64748b; margin-top:3px; line-height:1.45; }
+    .dice-badge { padding:6px 10px; border-radius:999px; background:#ede9fe; color:#5b21b6; font-size:12px; font-weight:800; white-space:nowrap; }
+    .dice-detail { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px; }
+    .dice-stat { background:white; border:1px solid #e9d5ff; border-radius:12px; padding:8px; text-align:center; }
+    .dice-stat b { display:block; font-size:18px; color:#4c1d95; }
+    .dice-stat span { font-size:11px; color:#64748b; }
+     .board-panel { min-height:620px; }
+    .side-panel { position:sticky; top:16px; }
+    .batch-drawer { margin-top:14px; border:1px solid #e2e8f0; border-radius:16px; background:#f8fafc; overflow:hidden; }
+    .batch-drawer summary { cursor:pointer; padding:12px 14px; font-weight:900; color:#334155; list-style:none; display:flex; align-items:center; justify-content:space-between; }
+    .batch-drawer summary::-webkit-details-marker { display:none; }
+    .batch-drawer summary::after { content:"展开"; font-size:12px; color:#64748b; }
+    .batch-drawer[open] summary::after { content:"收起"; }
+    .batch-body { padding:0 14px 14px; border-top:1px solid #e2e8f0; }
+
+    .modal-overlay { position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center; padding:18px; background:rgba(15,23,42,.58); backdrop-filter:blur(4px); }
+    .modal-box { width:min(680px, 100%); background:white; border-radius:22px; box-shadow:0 24px 80px rgba(15,23,42,.28); border:1px solid #dbeafe; overflow:hidden; }
+    .modal-head { padding:18px 20px; background:linear-gradient(135deg,#eff6ff,#fff7ed); border-bottom:1px solid #e2e8f0; }
+    .modal-head b { display:block; font-size:20px; color:#1e293b; }
+    .modal-head span { display:block; margin-top:5px; font-size:13px; color:#64748b; }
+    .modal-body { padding:18px 20px; color:#334155; line-height:1.75; font-size:14px; }
+    .modal-body p { margin:0 0 10px; color:#334155; }
+    .modal-body .warn { margin-top:12px; padding:10px 12px; border-radius:14px; background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; }
+    .modal-actions { display:flex; gap:10px; justify-content:flex-end; padding:0 20px 20px; }
+    .modal-actions button { min-width:140px; }
+    .manual-hint { display:none; margin:8px 0 10px; padding:10px 12px; border-radius:14px; background:#ecfeff; border:1px solid #67e8f9; color:#155e75; font-size:13px; line-height:1.55; }
+    .manual-hint.warn { background:#fff7ed; border-color:#fdba74; color:#9a3412; }
+
+
+    .round-dice-panel{margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:16px;background:#f8fafc;}
+    .round-dice-title{display:flex;justify-content:space-between;gap:10px;align-items:center;font-weight:700;margin-bottom:10px;}
+    .round-dice-sub{font-size:12px;color:var(--muted);font-weight:500;}
+    .round-dice-list{display:flex;gap:10px;overflow-x:auto;padding-bottom:3px;}
+    .round-dice-card{min-width:104px;border:1px solid var(--border);border-radius:14px;background:#fff;padding:8px;text-align:center;position:relative;box-shadow:0 1px 2px rgba(15,23,42,.04);}
+    .round-dice-card.current{border-color:#7c3aed;box-shadow:0 0 0 3px rgba(124,58,237,.16);}
+    .round-dice-card.done{opacity:.68;background:#f1f5f9;}
+    .round-dice-card .avatar{width:30px;height:30px;border-radius:999px;object-fit:cover;border:1px solid var(--border);vertical-align:middle;margin-right:4px;}
+    .round-dice-name{display:flex;justify-content:center;align-items:center;font-size:12px;font-weight:700;white-space:nowrap;}
+    .round-dice-symbol{font-size:38px;line-height:1;margin:5px 0;color:#111827;}
+    .round-dice-meta{font-size:11px;color:var(--muted);min-height:28px;}
+    .round-dice-card.min-ok{border-color:#22c55e;box-shadow:0 0 0 2px rgba(34,197,94,.18);}
+    .round-dice-card.invalid-note{border-color:#f59e0b;}
+
+    @media (max-width: 900px) { .main { grid-template-columns:1fr; } .side-panel{position:static;} .board { grid-template-columns: repeat(4, 1fr); } .wrap{padding:14px;} .board-panel{min-height:auto;} }
+  </style>
+</head>
+<body>
+
+<div class="modal-overlay" id="versionModal">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="versionModalTitle">
+    <div class="modal-head">
+      <b id="versionModalTitle">v18 系列大版本更新提示</b>
+      <span>新增 B 组模拟、统一团子库、B 组技能修复与手动模式优化</span>
+    </div>
+    <div class="modal-body">
+      <p><b>v18 系列是一次较大的结构与功能更新。</b>当前版本已支持国服 A / B 组切换，并保留夺冠概率、晋级概率、淘汰概率、平均名次、手动逐步模拟等核心功能。</p>
+      <p><b>主要新增内容：</b>加入国服 B 组 6 位团子、头像和技能；删除亚服相关选项，当前版本先专注国服小组赛；底层整理为统一团子库，方便后续加入 C 组、淘汰赛和总决赛。</p>
+      <p><b>规则与技能更新：</b>绯雪固定为第 3 回合开始遇到布大王才触发；爱弥斯「电子幽灵登场」固定中点为第 17 格，并提供 4 种规则假设，默认使用“移动结束后判定，前方无人则等待”。</p>
+      <div class="warn"><b>手动模式优化：</b>本轮骰子会按行动顺序显示；指定点数会同步更新骰子显示、底层点数表和技能判断。千咲最低点、守岸人 2/3 限制、莫宁 3/2/1 循环、爱弥斯目标搜索等问题已做修复。</div>
+      <p><b>赛事展示更新：</b>v18.1.4 已加入国服 A 组正式结果、晋级名单与谢幕赛名单，并新增更接近游戏风格的晋级图模块。B 组与 C 组结果将在直播更新后继续补充。</p>
+      <div class="warn">模拟结果仍然仅供参考。部分技能细节来自直播观察和规则文本推断，实际结算以游戏内表现为准。</div>
+    </div>
+    <div class="modal-actions">
+      <button onclick="closeVersionModal()">我知道了，继续使用</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <h1>小团快跑模拟器 v18.1.4</h1>
+  <p>普通团子骰子 1–3，布大王骰子 1–6。随机开局从第 2 格起跑，第 1 格为终点；布大王开局就在终点，第 3 回合开始移动。v18 系列已加入 B 组模拟、统一团子库，并优化手动模式骰子显示与 B 组技能判定。</p>
+
+  <details class="update-card">
+    <summary><div class="update-title">📢 更新公告 v18.1.4</div></summary>
+    <ul class="update-list">
+      <li><b>v18 大版本：</b>新增国服 B 组上半场模拟模式，录入 B 组 6 位团子的头像、名字和技能：千咲、莫宁、琳奈、爱弥斯、守岸人、珂莱塔。</li>
+      <li><b>v18 大版本：</b>B 组技能逻辑加入模拟：千咲「视阈解明」、莫宁「精密演算」、琳奈「炫彩时刻」、爱弥斯「电子幽灵登场」、守岸人「收束的未来」、珂莱塔「利润加倍」。</li>
+      <li><b>v18 大版本：</b>删除亚服相关选项和数据，当前版本先专注国服 A / B 组小组赛模拟，减少界面和数据源混乱。</li>
+      <li><b>v18 大版本：</b>重构底层数据结构，建立统一团子库 <code>DANGO_LIBRARY</code> 和基础比赛配置 <code>MATCH_CONFIGS</code>，为后续 C 组、淘汰赛、总决赛复用团子数据做准备。</li>
+      <li><b>v18 大版本：</b>固定绯雪技能规则：第 1、2 回合经过布大王不触发；第 3 回合开始与布大王相遇后触发。</li>
+      <li><b>v18.1：</b>爱弥斯「电子幽灵登场」中点固定为第 17 格，删除第 17 / 18 格中点切换，减少规则分歧。</li>
+      <li><b>v18.1：</b>新增爱弥斯 4 种规则假设：经过中点立刻判定 / 移动结束后判定，以及前方无人时等待 / 失效。默认采用“移动结束后判定；前方无人则等待”。</li>
+      <li><b>v18.1：</b>明确爱弥斯等待状态不会让她停止移动；她仍会正常主动移动、被带动、触发机关，并且整场最多成功传送一次。</li>
+      <li><b>v18.1.1：</b>修复批量模拟因爱弥斯中点旧函数残留导致无法运行的问题，恢复 A / B 组批量模拟稳定性。</li>
+      <li><b>v18.1.2：</b>手动模式新增“本轮行动顺序骰子”面板，按本回合行动顺序显示各团子的基础点数、当前行动者和已行动状态。</li>
+      <li><b>v18.1.2：</b>修复手动指定点数与底层基础骰子表不同步的问题。指定点数后，骰子显示、实际移动和技能判定会同步更新。</li>
+      <li><b>v18.1.2：</b>修复千咲「视阈解明」最低点判断异常。千咲为本轮最低点之一时会正确额外前进 2 格。</li>
+      <li><b>v18.1.2：</b>修复守岸人「收束的未来」手动输入异常。守岸人点数严格限制为 2 或 3。</li>
+      <li><b>v18.1.2：</b>莫宁「精密演算」不可手动覆盖，固定按 3 → 2 → 1 循环，并在手动模式中显示提示。</li>
+      <li><b>v18.1.2：</b>修复爱弥斯目标搜索会越过终点继续寻找的问题。现在只检查爱弥斯当前位置到第 1 格终点之间的前方目标。</li>
+      <li><b>v18.1.3：</b>更新打开网页时的大版本提示弹窗，集中说明 v18 系列主要变化。</li>
+      <li><b>v18.1.3：</b>优化手动指定特殊骰子角色的反馈：莫宁不可覆盖时会提示固定循环，守岸人输入非法点数时会提示并修正到 2 / 3。</li>
+      <li><b>v18.1.4：</b>更新国服 A 组正式下半场结果、晋级名单与谢幕赛名单；新增更接近游戏样式的赛事晋级图展示区，B/C 组暂保留待更新占位。</li>
+    </ul>
+  </details>
+
+  <div class="grid main">
+    <section class="card board-panel">
+      <div class="title">🎲 手动观察棋盘</div>
+      <div class="notice" style="margin-bottom:10px">左侧优先显示棋盘移动，右侧显示当前投掷信息。手动投掷和逐步自动运行时，团子会一格一格移动，方便观察过程。</div>
+      <div id="board" class="grid board"></div>
+      <div id="roundDicePanel" class="round-dice-panel"></div>
+    </section>
+
+    <section class="card side-panel">
+      <div class="title">🖱️ 手动模拟</div>
+      <div class="current" id="currentBox"></div>
+      <div class="manual-hint" id="manualHint"></div>
+      <div class="notice" style="margin:8px 0 10px">绯雪规则已固定：第 1、2 回合经过布大王不触发；第 3 回合开始与布大王相遇后触发。</div>
+      <label>模拟组别</label>
+      <select id="simGroup" class="select-input" onchange="changeSimGroup()">
+        <option value="A">国服 A 组</option>
+        <option value="B">国服 B 组（上半场）</option>
+      </select>
+      <label>B 组爱弥斯技能规则</label>
+      <select id="ghostMode" class="select-input">
+        <option value="end_wait">默认：移动结束后判定；前方无人则等待</option>
+        <option value="immediate_wait">经过中点立刻判定；前方无人则等待</option>
+        <option value="immediate_fail">经过中点立刻判定；前方无人则失效</option>
+        <option value="end_fail">移动结束后判定；前方无人则失效</option>
+      </select>
+      <div class="notice" style="margin:8px 0 10px">爱弥斯中点固定为第17格。等待状态不会停止移动；任意团子或布大王移动结束后都会再次检查一次。</div>
+      <div class="notice" style="margin:8px 0 10px">B 组当前仅支持上半场随机开局；上半场结果出来后再加入 B 组下半场固定开局。</div>
+      <div class="dice-panel" id="dicePanel">
+        <div class="dice-top">
+          <div class="dice-left">
+            <div class="dice-cube" id="diceCube">?</div>
+            <div style="min-width:0">
+              <div class="dice-actor" id="diceActor">等待投掷</div>
+              <div class="dice-sub" id="diceSub">点击随机投掷、指定点数，或开启逐步自动运行。</div>
+            </div>
+          </div>
+          <div class="dice-badge" id="diceBadge">手动模式</div>
+        </div>
+        <div class="dice-detail">
+          <div class="dice-stat"><b id="diceBase">-</b><span>骰子点数</span></div>
+          <div class="dice-stat"><b id="diceActual">-</b><span>实际移动</span></div>
+          <div class="dice-stat"><b id="diceCarry">-</b><span>携带数量</span></div>
+        </div>
+      </div>
+      <div class="btnrow">
+        <button class="secondary" onclick="randomStep()">随机投掷</button>
+        <button class="secondary" onclick="forcedStep()">指定点数</button>
+      </div>
+      <button class="secondary" id="autoFinishBtn" style="width:100%;margin-top:8px" onclick="autoFinishManual()">逐步自动跑完整局</button>
+      <label>自动运行速度（毫秒/步，越大越慢）</label>
+      <input id="autoStepDelay" type="number" value="500" min="80" max="2000" />
+      <label>指定点数：普通 1–3，守岸人 2–3，莫宁不可覆盖，布大王 1–6</label>
+      <input id="manualRoll" type="number" value="1" min="1" max="6" />
+      <button class="ghost" style="width:100%;margin-top:8px" onclick="resetManual()">重置手动局</button>
+      <label>下半场开局来源</label>
+      <select id="rankingSource" class="select-input">
+        <option value="cnA">国服 A 组上半场</option>
+      </select>
+      <button class="preset-btn" onclick="applySecondHalfPreset()">应用下半场开局（按国服排名）</button>
+
+      <details class="batch-drawer">
+        <summary>🎲 批量模拟控制台</summary>
+        <div class="batch-body">
+          <label>模拟次数</label>
+          <input id="count" type="number" value="1000" min="1" max="200000" />
+          <label>种子</label>
+          <input id="seed" type="number" value="20260509" />
+          <div class="check"><input id="autoSeed" type="checkbox" checked /> <span>自动生成新种子（批量模拟和重置手动局均生效）</span></div>
+          <label>批量固定开局来源</label>
+          <select id="batchRankingSource" class="select-input">
+            <option value="cnA">国服 A 组上半场</option>
+          </select>
+          <div class="check"><input id="batchSecondHalf" type="checkbox" /> <span>批量模拟使用国服 A 组下半场固定开局</span></div>
+          <button id="runBtn" style="width:100%" onclick="runBatch()">批量模拟</button>
+          <div class="notice">规则摘要：第 2 格为随机开局起点，第 1 格为终点；第 4、12、17、24 格推进；第 7、21 格空间裂隙；第 11、29 格阻遏。下半场固定开局中，非第 1 格出发的团子第一次经过终点不结算；绯雪固定为第 3 回合开始才会因布大王相遇触发。</div>
+        </div>
+      </details>
+    </section>
+  </div>
+
+  <section class="card" style="margin-top:16px">
+    <div class="title">🏆 胜率结果</div>
+    <div id="resultBox" class="small" style="padding:32px;text-align:center;border:1px dashed #cbd5e1;border-radius:14px;background:white">还没有批量模拟结果。</div>
+  </section>
+
+
+  <section class="card" style="margin-top:16px">
+    <div class="title">📊 赛事晋级图与当天排名</div>
+    <div class="notice" style="margin-bottom:12px">当前展示国服赛程。A 组已更新正式结果；B 组结果等待直播公布；C 组暂为待比赛占位。该模块先用于查看样式，后续可继续填充淘汰赛与总决赛名单。</div>
+    <div id="tournamentBracket" class="tourney"></div>
+  </section>
+
+  <section class="card" style="margin-top:16px">
+    <div class="title">手动局日志</div>
+    <div id="log" class="log"></div>
+  </section>
+</div>
+<script>
+// v18: 统一团子库，后续淘汰赛可直接通过团子 id 调用数据。
+const DANGO_LIBRARY = {
+  roccia: { id:"roccia", name:"陆·赫斯", short:"陆", group:"A", cls:"roccia", img:"assets/roccia.png", skillName:"机关联动", skillDescription:"触发推进额外前进 3 格，触发阻遏额外后退 1 格。", skillType:"roccia", skill:"roccia", skillParams:{} },
+  cartethyia: { id:"cartethyia", name:"卡提希娅", short:"卡", group:"A", cls:"cartethyia", img:"assets/cartethyia.png", skillName:"追赶补正", skillDescription:"主动行动后若处于最后一名，后续每次主动行动有 60% 概率额外前进 2 格。", skillType:"cartethyia", skill:"cartethyia", skillParams:{ chance:0.6, bonus:2 } },
+  cantarella: { id:"cantarella", name:"西格莉卡", short:"西", group:"A", cls:"cantarella", img:"assets/cantarella.png", skillName:"前排压制", skillDescription:"第 2 回合开始，压制排名紧邻且高于自身的最多两个团子。", skillType:"cantarella", skill:"cantarella", skillParams:{ penalty:1 } },
+  danjin: { id:"danjin", name:"达妮娅", short:"达", group:"A", cls:"danjin", img:"assets/danjin.png", skillName:"好事成双", skillDescription:"本次点数与上次相同时额外前进 2 格。", skillType:"repeat_roll_bonus", skill:"danjin", skillParams:{ bonus:2 } },
+  camellya: { id:"camellya", name:"绯雪", short:"绯", group:"A", cls:"camellya", img:"assets/camellya.png", skillName:"布大王相遇", skillDescription:"第 3 回合开始，与布大王相遇后，后续主动移动额外 +1。", skillType:"camellya_king_bonus", skill:"camellya", skillParams:{ bonus:1, triggerFromRound:3 } },
+  phoebe: { id:"phoebe", name:"菲比", short:"菲", group:"A", cls:"phoebe", img:"assets/phoebe.png", skillName:"概率加速", skillDescription:"每次主动行动 50% 概率额外前进 1 格。", skillType:"chance_bonus", skill:"phoebe", skillParams:{ chance:0.5, bonus:1 } },
+  chisaki: { id:"chisaki", name:"千咲", short:"千", group:"B", cls:"roccia", img:"assets/B1.png", skillName:"视阈解明", skillDescription:"若基础点数为本轮最低点之一，额外前进 2 格。", skillType:"round_min_roll_bonus", skill:"vision", skillParams:{ bonus:2 } },
+  moning: { id:"moning", name:"莫宁", short:"莫", group:"B", cls:"phoebe", img:"assets/B2.png", skillName:"精密演算", skillDescription:"点数固定按 3 / 2 / 1 循环。", skillType:"fixed_roll_cycle", skill:"precision", skillParams:{ cycle:[3,2,1] } },
+  linne: { id:"linne", name:"琳奈", short:"琳", group:"B", cls:"cartethyia", img:"assets/B3.png", skillName:"炫彩时刻！", skillDescription:"60% 双倍移动，20% 无法移动，20% 正常移动。", skillType:"double_or_stun", skill:"colorful", skillParams:{ doubleChance:0.6, stunChance:0.2 } },
+  aemis: { id:"aemis", name:"爱弥斯", short:"爱", group:"B", cls:"camellya", img:"assets/B4.png", skillName:"电子幽灵登场", skillDescription:"每场最多传送一次。经过第17格后，根据所选规则判定是否传送到前方最近团子顶端。", skillType:"midpoint_teleport", skill:"ghost", skillParams:{ midpoint:17 } },
+  shorekeeper: { id:"shorekeeper", name:"守岸人", short:"守", group:"B", cls:"cantarella", img:"assets/B5.png", skillName:"收束的未来", skillDescription:"骰子只会掷出 2 或 3。", skillType:"roll_only_2_or_3", skill:"future", skillParams:{ values:[2,3] } },
+  carlotta: { id:"carlotta", name:"珂莱塔", short:"珂", group:"B", cls:"danjin", img:"assets/B6.png", skillName:"利润加倍", skillDescription:"28% 概率按骰子的双倍点数前进。", skillType:"double_roll_chance", skill:"profit", skillParams:{ chance:0.28 } }
+};
+const GROUPS = {
+  A: { label:"国服 A 组", participants:["roccia","cartethyia","cantarella","danjin","camellya","phoebe"] },
+  B: { label:"国服 B 组", participants:["chisaki","moning","linne","aemis","shorekeeper","carlotta"] }
+};
+const MATCH_CONFIGS = {
+  cnA: { matchId:"cn-a", server:"国服", group:"A", phase:"A组", participants:GROUPS.A.participants },
+  cnB: { matchId:"cn-b", server:"国服", group:"B", phase:"B组", participants:GROUPS.B.participants }
+};
+function groupDangos(group){ return (GROUPS[group]?.participants || GROUPS.A.participants).map(id=>DANGO_LIBRARY[id]); }
+let CURRENT_GROUP = "A";
+let DANGOS = groupDangos(CURRENT_GROUP);
+function setCurrentGroup(group){ CURRENT_GROUP = GROUPS[group] ? group : "A"; DANGOS = groupDangos(CURRENT_GROUP); }
+const SPECIAL = {1:"终点",2:"起点",4:"推进",7:"裂隙",11:"阻遏",12:"推进",17:"推进",21:"裂隙",24:"推进",29:"阻遏"};
+const tileType = n => SPECIAL[n] || "普通";
+const nextTile = (n, step=1) => ((n - 1 + step) % 32) + 1;
+const prevTile = (n, step=1) => ((n - 1 - step + 3200) % 32) + 1;
+const nameOf = id => DANGOS.find(d=>d.id===id)?.name || id;
+const shortOf = id => DANGOS.find(d=>d.id===id)?.short || id;
+const clsOf = id => DANGOS.find(d=>d.id===id)?.cls || "";
+const imgOf = id => DANGOS.find(d=>d.id===id)?.img || "";
+function rngFromSeed(seed){ let s = Number(seed) >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+function randInt(rng,a,b){ return Math.floor(rng() * (b-a+1)) + a; }
+function shuffle(list,rng){ const a=[...list]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function initialStatus(){ return Object.fromEntries(DANGOS.map(d=>[d.id,{tile:2,lastRoll:null,metKing:false,comeback:false,comebackUsed:false,canFinish:true,rollCount:0,ghostUsed:false,ghostPassedMidpoint:false,ghostWaiting:false,ghostConsumed:false}])); }
+function prepareRoundRolls(s){
+  s.baseRolls = {};
+  for(const d of DANGOS){
+    const st=s.status[d.id];
+    if(d.skill==="precision") s.baseRolls[d.id] = [3,2,1][(st.rollCount||0) % 3];
+    else if(d.skill==="future") s.baseRolls[d.id] = randInt(s.rng,2,3);
+    else s.baseRolls[d.id] = randInt(s.rng,1,3);
+  }
+  if(s.round >= 3) s.baseRolls.king = randInt(s.rng,1,6);
+}
+function makeInitial(seed, camellyaEarlyTrigger=false, group=CURRENT_GROUP){ setCurrentGroup(group); const rng=rngFromSeed(seed); const opening=shuffle(DANGOS.map(d=>d.id), rng); const s={ seed, rng, group:CURRENT_GROUP, startMode:"random", round:1, turnIndex:0, order:opening, baseRolls:{}, stacks:{1:["king"],2:[...opening]}, status:initialStatus(), king:{tile:1,active:true}, winner:null, lastAction:null, camellyaEarlyTrigger, ghostMode:getGhostMode(), log:[`当前模拟组别：${GROUPS[CURRENT_GROUP].label}。`,`布大王开局位于第1格终点，第3回合开始移动。`,`绯雪相遇规则：${camellyaEarlyTrigger?"第3回合后才可触发":"第3回合后才可触发"}。`,`开局顺序 / 第2格起点堆叠：${opening.map(shortOf).join(" → ")}`] }; prepareRoundRolls(s); return s; }
+function cloneState(s){ setCurrentGroup(s.group||CURRENT_GROUP); return {...s, baseRolls:{...(s.baseRolls||{})}, stacks:Object.fromEntries(Object.entries(s.stacks).map(([k,v])=>[k,[...v]])), status:Object.fromEntries(Object.entries(s.status).map(([k,v])=>[k,{...v}])), king:{...s.king}, order:[...s.order], log:[...s.log]}; }
+function stackAt(s,t){ return s.stacks[t] || []; }
+function setStack(s,t,st){ const clean=[...new Set(st)]; if(!clean.length) delete s.stacks[t]; else s.stacks[t]=clean; }
+function isDango(id){ return id && id!=="king"; }
+function getIdTile(s,id){ return id==="king" ? s.king.tile : s.status[id].tile; }
+function setIdTile(s,id,tile){ if(id==="king") s.king.tile=tile; else if(s.status[id]) s.status[id].tile=tile; }
+function removeIdFromAllStacks(s,id){ for(const k of Object.keys(s.stacks)){ const next=s.stacks[k].filter(x=>x!==id); setStack(s,Number(k),next); } }
+function placeKingAt(s,tile){ removeIdFromAllStacks(s,"king"); const st=stackAt(s,tile).filter(id=>id!=="king"); st.push("king"); setStack(s,tile,st); s.king.tile=tile; s.king.active=true; }
+function ensureKingActive(s){ if(!s.king.active){ placeKingAt(s,1); s.log.push("布大王从第1格登场。 "); } else { const st=stackAt(s,s.king.tile); if(!st.includes("king")) placeKingAt(s,s.king.tile); } }
+function raceScore(s,id){
+  const st=s.status[id];
+  // 普通开局：第2格是起点，第1格是终点；分数用格子顺序近似排名。
+  // 下半场固定开局：国服 A 组排名第1名从第1格出发，应被视为领先；
+  // 其他团子第一次经过第1格只解锁终点结算资格，之后才进入下一圈。
+  if(s.startMode==="secondHalf" && st.canFinish) return 32 + (st.tile - 1);
+  return st.tile - 1;
+}
+function rank(s){ return DANGOS.map(d=>({id:d.id,tile:s.status[d.id].tile,score:raceScore(s,d.id)})).sort((a,b)=>{ if(b.score!==a.score) return b.score-a.score; return stackAt(s,a.tile).indexOf(a.id)-stackAt(s,b.tile).indexOf(b.id); }).map(x=>x.id); }
+function passesTileForward(from,steps,target){ for(let i=1;i<=steps;i++) if(nextTile(from,i)===target) return true; return false; }
+function passesTileBackward(from,steps,target){ for(let i=1;i<=steps;i++) if(prevTile(from,i)===target) return true; return false; }
+function mergeMovingGroupOnTile(s, group, tile, mode="normal"){
+  const existing=stackAt(s,tile).filter(id=>!group.includes(id));
+  // normal: 普通团子/团子叠移动，移动来的整叠放到最上方。
+  // king: 布大王移动时钻到当前格最底部；被追上的团子会在整叠上方。
+  const merged = mode==="king" ? [...existing, ...group] : [...group, ...existing];
+  setStack(s,tile,merged);
+  group.forEach(id=>setIdTile(s,id,tile));
+}
+function canCamellyaMeetKingNow(s){ return s.camellyaEarlyTrigger !== false || s.round >= 3; }
+function moveForward(s,ids,steps,actorId,label){ if(!ids.length||s.winner) return; const from=getIdTile(s,ids[0]); if(s.lastAction){ s.lastAction.groupIds=[...ids]; s.lastAction.path=[from]; } const oldStack=stackAt(s,from); setStack(s,from,oldStack.filter(id=>!ids.includes(id))); let to=from; for(let i=0;i<steps;i++){ to=nextTile(to); if(s.lastAction) s.lastAction.path.push(to); } if(steps>0 && passesTileForward(from,steps,1)){
+    if(s.status[ids[0]]?.canFinish !== false){
+      s.winner=ids[0];
+      s.log.push(`${label} 到达终点，堆叠最上方 ${nameOf(ids[0])} 获胜。`);
+      return;
+    } else {
+      ids.forEach(id=>{ if(s.status[id]) s.status[id].canFinish=true; });
+      s.log.push(`${label} 第一次经过终点，本次不结算；该叠团子已获得下一次终点结算资格。`);
+    }
+  }
+  if(s.king.active && ids.includes("camellya") && (passesTileForward(from,steps,s.king.tile)||to===s.king.tile)){
+    if(canCamellyaMeetKingNow(s)){
+      if(!s.status.camellya.metKing) s.log.push("绯雪与布大王相遇，后续主动移动 +1。");
+      s.status.camellya.metKing=true;
+    } else {
+      s.log.push("绯雪经过布大王，但当前规则设置为第3回合后才触发，因此本次不触发技能。");
+    }
+  }
+  mergeMovingGroupOnTile(s,ids,to,"normal");
+  const type=tileType(to);
+  if(type==="裂隙"){ const st=stackAt(s,to); const hasKing=st.includes("king"); const dangos=st.filter(isDango); const shuffled=shuffle(dangos,s.rng); setStack(s,to,hasKing?[...shuffled,"king"]:shuffled); s.log.push(`${label} 落在第${to}格裂隙，该格堆叠随机重排。`); return; }
+  if(type==="推进"||type==="阻遏"){ let extra=type==="推进"?1:-1; if(actorId==="roccia") extra += type==="推进"?3:-1; s.log.push(`${label} 触发第${to}格${type}，${extra>0?"前进":"后退"}${Math.abs(extra)}格。`); const group=stackAt(s,to).filter(id=>ids.includes(id)); setStack(s,to,stackAt(s,to).filter(id=>!group.includes(id))); let finalTile=to; for(let i=0;i<Math.abs(extra);i++){ finalTile=extra>0?nextTile(finalTile):prevTile(finalTile); if(s.lastAction) s.lastAction.path.push(finalTile); } mergeMovingGroupOnTile(s,group,finalTile,"normal"); }
+}
+function activeGroup(s,id){ const tile=s.status[id].tile; const st=stackAt(s,tile); const idx=st.indexOf(id); return idx<0?[]:st.slice(0,idx+1); }
+function kingGroup(s){ ensureKingActive(s); const tile=s.king.tile; const st=stackAt(s,tile); const idx=st.indexOf("king"); return idx<0?["king"]:st.slice(0,idx+1); }
+function kingMoveOneStep(s,dir){
+  let group=kingGroup(s);
+  const from=s.king.tile;
+  setStack(s,from,stackAt(s,from).filter(id=>!group.includes(id)));
+  const to=dir>0?nextTile(from):prevTile(from);
+  mergeMovingGroupOnTile(s,group,to,"king");
+  if(s.lastAction) s.lastAction.path.push(to);
+  const st=stackAt(s,to);
+  if(st.includes("camellya")){
+    if(canCamellyaMeetKingNow(s)){
+      if(!s.status.camellya.metKing) s.log.push("布大王与绯雪相遇，绯雪后续主动移动 +1。");
+      s.status.camellya.metKing=true;
+    } else {
+      s.log.push("布大王经过绯雪，但当前规则设置为第3回合后才触发，因此本次不触发技能。");
+    }
+  }
+  // 经过其他团子后，下一步会携带当前格全部位于布大王上方的团子继续移动。
+  return to;
+}
+function kingApplySpecialOnce(s){
+  const tile=s.king.tile;
+  const type=tileType(tile);
+  if(type==="推进"||type==="阻遏"){
+    const dir=type==="推进"?1:-1; // 地图固定方向：推进永远 +1，阻遏永远 -1。
+    const before=s.king.tile;
+    kingMoveOneStep(s,dir);
+    s.log.push(`布大王触发第${before}格${type}，按地图固定方向${dir>0?"前进":"后退"}1格，到第${s.king.tile}格。`);
+    if(s.lastAction) s.lastAction.notes.push(`${type}${dir>0?"+1":"-1"}`);
+  } else if(type==="裂隙"){
+    const st=stackAt(s,tile);
+    const dangos=st.filter(isDango);
+    const shuffled=shuffle(dangos,s.rng);
+    setStack(s,tile,[...shuffled,"king"]);
+    s.log.push(`布大王落在第${tile}格空间裂隙，该格布大王上方团子随机重排；本次行动只触发一次特殊格。`);
+    if(s.lastAction) s.lastAction.notes.push("裂隙重排");
+  }
+}
+function kingHasDangoAbove(s){ if(!s.king.active) return false; const st=stackAt(s,s.king.tile); const idx=st.indexOf("king"); return idx>0; }
+function hasDangoAheadOfKing(s){
+  if(!s.king.active) return false;
+  let t=s.king.tile;
+  // 布大王前方：沿其反向移动方向，从当前位置前一格检查到第1格，不绕完整圈。
+  while(t!==1){
+    t=prevTile(t);
+    if(DANGOS.some(d=>s.status[d.id].tile===t)) return true;
+  }
+  return false;
+}
+function checkKingReturnAtRoundEnd(s){
+  if(!s.king.active || s.round < 3) return;
+  if(kingHasDangoAbove(s)){
+    s.log.push("回合结束检查：布大王上方有团子，不传送回起点。 ");
+    return;
+  }
+  if(!hasDangoAheadOfKing(s)){
+    const old=s.king.tile;
+    placeKingAt(s,1);
+    if(old!==1) s.log.push(`回合结束检查：布大王前方没有团子，传送回第1格。`);
+  } else {
+    s.log.push("回合结束检查：布大王前方仍有团子，留在当前位置。 ");
+  }
+}
+function kingMove(s,forcedRoll=null){
+  if(!s.king.active) return;
+  ensureKingActive(s);
+  const roll=forcedRoll ?? (s.baseRolls&&s.baseRolls.king) ?? randInt(s.rng,1,6);
+  const from=s.king.tile;
+  s.lastAction={actor:"king", actorName:"布大王", baseRoll:roll, actualSteps:roll, carryCount:Math.max(0,kingGroup(s).length-1), carried:kingGroup(s).filter(isDango).map(shortOf), notes:["反向移动"], groupIds:[...kingGroup(s)], path:[from]};
+  for(let i=0;i<roll;i++) kingMoveOneStep(s,-1);
+  s.log.push(`布大王掷出 ${roll}，反向移动：第${from}格 → 第${s.king.tile}格。`);
+  kingApplySpecialOnce(s);
+  const finalGroup=kingGroup(s);
+  s.lastAction.groupIds=[...finalGroup];
+  s.lastAction.carryCount=Math.max(0,finalGroup.length-1);
+  s.lastAction.carried=finalGroup.filter(isDango).map(shortOf);
+}
+function dangoDef(id){ return DANGOS.find(d=>d.id===id) || {}; }
+function getBaseRollForDango(s,id,forcedRoll=null){
+  const def=dangoDef(id);
+  if(!s.baseRolls) s.baseRolls={};
+  if(forcedRoll != null){
+    let v=Number(forcedRoll);
+    if(def.skill==="future") v = v<=2 ? 2 : 3;
+    else v = Math.max(1, Math.min(3, v));
+    s.baseRolls[id]=v;
+    return v;
+  }
+  if(s.baseRolls[id]) return s.baseRolls[id];
+  if(def.skill==="precision"){ s.baseRolls[id]=[3,2,1][(s.status[id].rollCount||0)%3]; return s.baseRolls[id]; }
+  if(def.skill==="future"){ s.baseRolls[id]=randInt(s.rng,2,3); return s.baseRolls[id]; }
+  s.baseRolls[id]=randInt(s.rng,1,3);
+  return s.baseRolls[id];
+}
+function bGroupMinRoll(s){ const vals=Object.values(s.baseRolls||{}); return vals.length?Math.min(...vals):1; }
+function findNearestDangoAhead(s, fromTile, selfId){
+  // 爱弥斯只检查当前位置到第1格终点之间的前方目标，不允许越过终点继续绕圈搜索。
+  if(fromTile === 1) return null;
+  let t=fromTile;
+  for(let guard=0; guard<32; guard++){
+    t=nextTile(t);
+    const found=stackAt(s,t).find(x=>isDango(x) && x!==selfId);
+    if(found) return {tile:t, id:found};
+    if(t===1) break;
+  }
+  return null;
+}
+function teleportDangoToTop(s,id,targetTile){
+  removeIdFromAllStacks(s,id);
+  const st=stackAt(s,targetTile);
+  setStack(s,targetTile,[id,...st]);
+  s.status[id].tile=targetTile;
+}
+function ghostModeOf(s){ return s.ghostMode || getGhostMode(); }
+function isImmediateGhostMode(s){ return ghostModeOf(s).startsWith("immediate"); }
+function ghostWaitsOnNoTarget(s){ return ghostModeOf(s).endsWith("wait"); }
+function getAemisStatus(s){ return s.status && s.status.aemis; }
+function attemptAemisTeleport(s, reason="", options={}){
+  if(s.group!=="B" || !s.status.aemis || s.winner) return false;
+  const st=s.status.aemis;
+  if(st.ghostUsed || st.ghostConsumed) return false;
+  const near=findNearestDangoAhead(s, st.tile, "aemis");
+  if(near){
+    teleportDangoToTop(s,"aemis",near.tile);
+    st.ghostUsed=true;
+    st.ghostConsumed=true;
+    st.ghostWaiting=false;
+    const prefix = reason ? `${reason}，` : "";
+    s.log.push(`${prefix}爱弥斯触发电子幽灵登场，传送到前方最近的${nameOf(near.id)}所在格顶端。`);
+    if(s.lastAction){ s.lastAction.notes.push(`电子幽灵→第${near.tile}格`); s.lastAction.path.push(near.tile); }
+    return true;
+  }
+  if(options.consumeOnFail){
+    st.ghostConsumed=true;
+    st.ghostWaiting=false;
+    const prefix = reason ? `${reason}，` : "";
+    s.log.push(`${prefix}爱弥斯前方没有其他非布大王团子，电子幽灵登场失效，本场不再触发。`);
+  } else if(options.enterWait){
+    if(!st.ghostWaiting){
+      const prefix = reason ? `${reason}，` : "";
+      s.log.push(`${prefix}爱弥斯前方暂时没有目标，进入等待状态；之后任意单位移动结束后继续检查。`);
+    }
+    st.ghostWaiting=true;
+  } else if(!options.quiet){
+    const prefix = reason ? `${reason}，` : "";
+    s.log.push(`${prefix}爱弥斯前方暂时没有目标。`);
+  }
+  return false;
+}
+function processAemisMidpointAfterMove(s){
+  if(s.group!=="B" || !s.status.aemis || s.winner) return;
+  const st=s.status.aemis;
+  if(st.ghostUsed || st.ghostConsumed) return;
+  const path=(s.lastAction && s.lastAction.path) || [];
+  const moved=(s.lastAction && s.lastAction.groupIds) || [];
+  const includesAemis = moved.includes("aemis") || s.lastAction?.actor === "aemis";
+  if(!includesAemis) return;
+  if(!path.includes(17)) return;
+  st.ghostPassedMidpoint=true;
+  const mode=ghostModeOf(s);
+  const reason = mode.startsWith("immediate") ? "爱弥斯经过第17格中点，立刻判定" : "爱弥斯经过第17格中点，本次移动结束后判定";
+  attemptAemisTeleport(s, reason, { enterWait: ghostWaitsOnNoTarget(s), consumeOnFail: !ghostWaitsOnNoTarget(s) });
+}
+function checkAemisWaitingAfterAction(s){
+  if(s.group!=="B" || !s.status.aemis || s.winner) return;
+  const st=s.status.aemis;
+  if(st.ghostUsed || st.ghostConsumed || !st.ghostWaiting) return;
+  attemptAemisTeleport(s, "爱弥斯处于等待状态，移动结束后再次检查", { enterWait:false, consumeOnFail:false, quiet:true });
+}
+function stepDango(s,id,forcedRoll=null){
+  if(s.winner) return;
+  const info=s.status[id];
+  const def=dangoDef(id);
+  const group=activeGroup(s,id);
+  const baseRoll=getBaseRollForDango(s,id,forcedRoll);
+  let steps=baseRoll;
+  const notes=[];
+
+  if(s.group === "A"){
+    const ranking=rank(s);
+    const ci=ranking.indexOf("cantarella");
+    const marked=new Set((s.round>1 && ci>0)?ranking.slice(Math.max(0,ci-2),ci):[]);
+    if(marked.has(id)){ steps=Math.max(1,steps-1); notes.push("被西格莉卡 -1"); }
+    if(id==="danjin"&&info.lastRoll===baseRoll){ steps+=2; notes.push("达妮娅重复点数 +2"); }
+    if(id==="camellya"&&info.metKing){ steps+=1; notes.push("绯雪 +1"); }
+    if(id==="phoebe"&&s.rng()<.5){ steps+=1; notes.push("菲比 +1"); }
+    if(id==="cartethyia"&&info.comeback&&s.rng()<.6){ steps+=2; notes.push("卡提希娅 +2"); }
+  } else if(s.group === "B"){
+    if(def.skill==="vision" && baseRoll===bGroupMinRoll(s)){ steps+=2; notes.push("视阈解明 +2"); }
+    if(def.skill==="precision"){ notes.push("精密演算固定点数"); }
+    if(def.skill==="colorful"){ const r=s.rng(); if(r<0.6){ steps=baseRoll*2; notes.push("炫彩时刻双倍"); } else if(r<0.8){ steps=0; notes.push("炫彩时刻无法移动"); } else { notes.push("炫彩时刻正常移动"); } }
+    if(def.skill==="future"){ notes.push("收束的未来：只出2或3"); }
+    if(def.skill==="profit" && s.rng()<0.28){ steps=baseRoll*2; notes.push("利润加倍：双倍点数"); }
+  }
+
+  info.lastRoll=baseRoll;
+  info.rollCount=(info.rollCount||0)+1;
+  s.lastAction={actor:id, actorName:nameOf(id), baseRoll, actualSteps:steps, carryCount:group.length, carried:group.map(shortOf), notes:[...notes], groupIds:[...group], path:[]};
+  s.log.push(`${nameOf(id)} 掷出 ${baseRoll}，实际移动 ${steps}${notes.length?`（${notes.join("；")}）`:""}，携带：${group.map(shortOf).join("、")}`);
+  moveForward(s,group,steps,id,nameOf(id));
+
+  if(s.group==="A" && id==="cartethyia"&&!info.comebackUsed&&!s.winner){ const r=rank(s); if(r[r.length-1]===id){ info.comeback=true; info.comebackUsed=true; s.log.push("卡提希娅处于最后一名，激活追赶技能。"); } }
+  if(s.group==="B"){ processAemisMidpointAfterMove(s); checkAemisWaitingAfterAction(s); }
+}
+function buildRoundOrder(s){ const base=DANGOS.map(d=>d.id); return s.round>=3 ? shuffle([...base,"king"], s.rng) : shuffle(base, s.rng); }
+function advanceTurn(inputState,forcedRoll=null){ const s=cloneState(inputState); if(s.winner) return s; if(s.round>=3) ensureKingActive(s); const current=s.order[s.turnIndex]; if(current==="king"){ kingMove(s,forcedRoll); checkAemisWaitingAfterAction(s); } else stepDango(s,current,forcedRoll); if(s.winner){ const last=rank(s).at(-1); s.log.push(`比赛结束：最后一名为 ${nameOf(last)}，布大王位于第${s.king.tile}格。`); return s; } s.turnIndex++; if(s.turnIndex>=s.order.length){ checkKingReturnAtRoundEnd(s); s.round++; s.turnIndex=0; s.order=buildRoundOrder(s); prepareRoundRolls(s); s.log.push(`--- 第 ${s.round} 回合，行动顺序：${s.order.map(x=>x==="king"?"布":shortOf(x)).join(" → ")} ---`); } return s; }
+function simulateOne(seed,maxTurns=1000,startMode="random", rankingKey=DEFAULT_RANKING_KEY, camellyaEarlyTrigger=true, group=CURRENT_GROUP){ setCurrentGroup(group); const src=getRankingSource(rankingKey); let s=(group==="A" && startMode==="secondHalf")?makeSecondHalfState(seed, src.ranking, src.label, camellyaEarlyTrigger):makeInitial(seed, camellyaEarlyTrigger, group); let safe=0; while(!s.winner&&safe++<maxTurns) s=advanceTurn(s); if(!s.winner) s.winner=rank(s)[0]; return s; }
+function finalRanking(s){
+  const base=rank(s).filter(id=>id!==s.winner);
+  return s.winner ? [s.winner, ...base] : base;
+}
+function formatResults(rows, seed, n){
+  return `<div class="small" style="margin-bottom:10px">本次使用种子：${seed}；已完成：${n} 局；结果默认按晋级概率排序</div>`+
+  rows.map((row,i)=>`<div class="result-row">
+    <div class="result-head"><span class="result-title"><img class="result-avatar" src="${row.img}" alt="${row.name}">#${i+1} ${row.name}</span><span>晋级 ${(row.advanceRate*100).toFixed(2)}%</span></div>
+    <div class="small" style="margin:6px 0 4px">晋级概率 / 前四概率</div><div class="bar"><div style="width:${Math.max(1,row.advanceRate*100)}%"></div></div>
+    <div class="small" style="margin-top:8px">夺冠：${(row.winRate*100).toFixed(2)}%　淘汰：${(row.elimRate*100).toFixed(2)}%　平均名次：${row.avgRank.toFixed(2)}　胜场：${row.wins}</div>
+  </div>`).join("");
+}
+function rowsFromStats(stats, done){
+  return DANGOS.map(d=>{
+    const s=stats[d.id];
+    const winRate=done?s.wins/done:0;
+    const advanceRate=done?s.top4/done:0;
+    const elimRate=1-advanceRate;
+    const avgRank=done?s.rankSum/done:0;
+    return {...d,wins:s.wins,top4:s.top4,rankSum:s.rankSum,winRate,advanceRate,elimRate,avgRank,rate:winRate};
+  }).sort((a,b)=>{
+    if(b.advanceRate!==a.advanceRate) return b.advanceRate-a.advanceRate;
+    return b.winRate-a.winRate;
+  });
+}
+function runBatchAsync(n,seed,autoSeed,onProgress,onDone,startMode="random",rankingKey=DEFAULT_RANKING_KEY,camellyaEarlyTrigger=true,group=CURRENT_GROUP){ setCurrentGroup(group);
+  const stats=Object.fromEntries(DANGOS.map(d=>[d.id,{wins:0,top4:0,rankSum:0}]));
+  const realSeed=Number(seed||1);
+  let done=0;
+  const batchSize = n <= 1000 ? 25 : n <= 10000 ? 100 : 250;
+  function chunk(){
+    const end=Math.min(n,done+batchSize);
+    for(let i=done;i<end;i++){
+      const s=simulateOne((realSeed+i*9973)>>>0,1000,startMode,rankingKey,camellyaEarlyTrigger,group);
+      const fr=finalRanking(s);
+      fr.forEach((id,idx)=>{
+        if(!stats[id]) return;
+        if(idx===0) stats[id].wins++;
+        if(idx<4) stats[id].top4++;
+        stats[id].rankSum += idx+1;
+      });
+    }
+    done=end;
+    const rows=rowsFromStats(stats,done);
+    onProgress({seed:realSeed,done,total:n,rows});
+    if(done<n) setTimeout(chunk,0);
+    else onDone({seed:realSeed,done,total:n,rows});
+  }
+  setTimeout(chunk,0);
+}
+function generateSeed(){
+  if (window.crypto && crypto.getRandomValues) {
+    const a = new Uint32Array(1);
+    crypto.getRandomValues(a);
+    return (a[0] % 2147483647) || 1;
+  }
+  return ((Date.now() + Math.floor(Math.random()*1000000000)) % 2147483647) || 1;
+}
+function setSeedInput(v){ document.getElementById("seed").value = String(v); }
+function getSeedForRun(){
+  const auto = document.getElementById("autoSeed")?.checked;
+  const seed = auto ? generateSeed() : Number(document.getElementById("seed").value || 1);
+  if (auto) setSeedInput(seed);
+  return seed;
+}
+
+const BRACKET_GROUPS = {
+  A: ["danjin","cantarella","camellya","cartethyia","phoebe","roccia"],
+  B: ["chisaki","moning","linne","aemis","shorekeeper","carlotta"],
+  C: ["C1","C2","C3","C4","C5","C6"],
+};
+const A_FINAL_RANKING = ["danjin","cantarella","camellya","cartethyia","phoebe","roccia"];
+const A_ADVANCED = A_FINAL_RANKING.slice(0,4);
+const A_FAREWELL = A_FINAL_RANKING.slice(4);
+// 当前国服 A 组上半场排名数据源。用于复盘下半场固定开局，不能用最终排名覆盖。
+const RANKING_SOURCES = {
+  cnA: {
+    server: "国服",
+    group: "A",
+    label: "国服 A 组上半场结果（05.09）",
+    note: "A 组上半场排名仅用于生成下半场固定站位；最终晋级只看下半场结果。",
+    ranking: ["danjin", "phoebe", "cantarella", "camellya", "roccia", "cartethyia"]
+  }
+};
+const DEFAULT_RANKING_KEY = "cnA";
+function getRankingSource(key){ return RANKING_SOURCES[key] || RANKING_SOURCES[DEFAULT_RANKING_KEY]; }
+function selectedManualRankingKey(){ return document.getElementById("rankingSource")?.value || DEFAULT_RANKING_KEY; }
+function selectedBatchRankingKey(){ return document.getElementById("batchRankingSource")?.value || selectedManualRankingKey(); }
+function selectedDisplayRankingKey(){ return DEFAULT_RANKING_KEY; }
+function selectedCamellyaEarlyRule(){ return false; }
+function selectedSimGroup(){ return document.getElementById("simGroup")?.value || CURRENT_GROUP || "A"; }
+function getGhostMode(){ return document.getElementById("ghostMode")?.value || "end_wait"; }
+function nameOfAny(id){ return DANGO_LIBRARY[id]?.name || id; }
+function imgOfAny(id){ return DANGO_LIBRARY[id]?.img || `assets/${id}.png`; }
+function bracketAvatar(id){ return imgOfAny(id); }
+function avatarSlot(id, cls="", label=""){
+  if(id && DANGO_LIBRARY[id]) return `<div class="slot-wrap"><img class="game-avatar ${cls}" src="${imgOfAny(id)}" alt="${nameOfAny(id)}" title="${nameOfAny(id)}"><div class="slot-label">${label || nameOfAny(id)}</div></div>`;
+  return `<div class="slot-wrap"><div class="q-slot">?</div><div class="slot-label">${label || "待定"}</div></div>`;
+}
+function groupCard(group, ids, opts={}){
+  const isDone=opts.done;
+  const headerRight = opts.date || "待定";
+  const headClass = opts.headClass || "";
+  const status = isDone ? `<span class="status-badge">已完赛</span>` : `<span class="status-badge wait">待更新</span>`;
+  return `<div class="game-card">
+    <div class="game-head ${headClass}"><span>${group}组（6进4）${status}</span><span>${headerRight}</span></div>
+    <div class="game-body">
+      <div class="avatar-track">${ids.map((id,i)=>avatarSlot(id, isDone ? (i<4?"advanced":"farewell") : (DANGO_LIBRARY[id]?"":"pending"), DANGO_LIBRARY[id] ? nameOfAny(id) : "待定")).join("")}</div>
+      <div class="game-footer"><span>${opts.left || "小组赛"}</span><span>${opts.right || (isDone?"正式结果":"等待直播")}</span></div>
+    </div>
+  </div>`;
+}
+function stageCard(title, ids, opts={}){
+  const placeholders = Array.from({length:opts.total||6}, (_,i)=>ids[i] || null);
+  return `<div class="game-card">
+    <div class="game-head ${opts.headClass || ""}"><span>${title}</span><span>${opts.date || ""}</span></div>
+    <div class="game-body">
+      <div class="avatar-track">${placeholders.map((id,i)=>avatarSlot(id, id ? opts.avatarClass : "pending", id ? nameOfAny(id) : "待定")).join("")}</div>
+      <div class="game-footer"><span>${opts.left || ""}</span><span>${opts.right || ""}</span></div>
+    </div>
+  </div>`;
+}
+function renderTournamentBracket(){
+  const box=document.getElementById("tournamentBracket");
+  if(!box) return;
+  const cPlaceholders = BRACKET_GROUPS.C;
+  box.innerHTML = `
+    <div class="stage-tabs">
+      <div class="stage-tab active"><b>小组赛</b><span>05.09-05.15</span></div>
+      <div class="stage-tab"><b>淘汰赛</b><span>05.16-05.21</span></div>
+      <div class="stage-tab"><b>总决赛</b><span>05.23</span></div>
+    </div>
+    <div class="tourney-grid">
+      <div class="tourney-left">
+        ${groupCard("A", A_FINAL_RANKING, {done:true, date:"05.09 / 05.10", left:"正式排名", right:"前4晋级，后2谢幕"})}
+        ${groupCard("B", BRACKET_GROUPS.B, {date:"05.11 / 05.12", left:"B组上半场进行中", right:"等待直播结果"})}
+        ${groupCard("C", cPlaceholders, {date:"05.13 / 05.14", left:"C组待比赛", right:"暂未解锁"})}
+      </div>
+      <div class="tourney-right">
+        ${stageCard("晋级淘汰赛", A_ADVANCED, {headClass:"red", avatarClass:"advanced", total:12, date:"A组已确认", left:"A组前4已进入", right:"B/C组待更新"})}
+        ${stageCard("谢幕赛", A_FAREWELL, {headClass:"purple", avatarClass:"farewell", total:6, date:"A组已确认", left:"A组后2已进入", right:"B/C组待更新"})}
+        ${stageCard("总决赛", [], {headClass:"dark", total:6, date:"05.23", left:"淘汰赛后更新", right:"待定"})}
+      </div>
+    </div>
+    <div class="flow-note">说明：A 组最终排名为 达妮娅、西格莉卡、绯雪、卡提希娅、菲比、陆·赫斯。根据规则，下半场前 4 晋级淘汰赛，后 2 进入谢幕赛；B 组与 C 组结果将在直播确认后继续更新。</div>
+    <div class="today-panel" style="margin-top:14px;color:#0f172a">
+      <b>国服 A 组正式结果</b>
+      <div class="result-list">${A_FINAL_RANKING.map((id,i)=>`<div class="rank-row"><span class="rank-num">${i+1}</span><img src="${imgOfAny(id)}" alt="${nameOfAny(id)}"><span class="rank-name">${nameOfAny(id)}团子</span><span class="rank-tag ${i<4?"adv":"fare"}">${i<4?"晋级":"谢幕赛"}</span></div>`).join("")}</div>
+    </div>
+  `;
+}
+function renderBracket(){ renderTournamentBracket(); }
+function renderTodayRanking(){ renderTournamentBracket(); }
+
+let state = makeInitial(20260509, false, "A");
+
+function makeSecondHalfState(seed, ranking = getRankingSource(DEFAULT_RANKING_KEY).ranking, sourceLabel = getRankingSource(DEFAULT_RANKING_KEY).label, camellyaEarlyTrigger=false){
+  setCurrentGroup("A");
+  const rng = rngFromSeed(seed);
+  const [r1,r2,r3,r4,r5,r6] = ranking;
+  const stacks = {
+    1: [r1, "king"],
+    32: [r2, r3],
+    31: [r4, r5],
+    30: [r6],
+  };
+  const status = Object.fromEntries(DANGOS.map(d=>[d.id,{tile:1,lastRoll:null,metKing:false,comeback:false,comebackUsed:false,canFinish:false,rollCount:0,ghostUsed:false}]));
+  Object.entries(stacks).forEach(([tile, ids])=>ids.filter(isDango).forEach(id=>{ status[id].tile = Number(tile); }));
+  status[r1].canFinish = true;
+  const firstOrder = shuffle(DANGOS.map(d=>d.id), rng);
+  const s={
+    seed, rng, group:"A", startMode:"secondHalf", round:1, turnIndex:0, order:firstOrder, baseRolls:{}, stacks, status, ghostMode:getGhostMode(),
+    king:{tile:1,active:true}, winner:null, lastAction:null, camellyaEarlyTrigger,
+    log:[
+      `已应用${sourceLabel}的下半场固定开局。`,
+      `布大王开局位于第1格终点，第3回合开始移动；绯雪相遇规则：${camellyaEarlyTrigger?"第3回合后才可触发":"第3回合后才可触发"}。`,
+      `上半场排名仅决定站位和同格堆叠顺序；第一回合行动顺序随机：${firstOrder.map(shortOf).join(" → ")}`,
+      `站位：第1格 ${nameOf(r1)}；第32格 ${nameOf(r2)}在上、${nameOf(r3)}在下；第31格 ${nameOf(r4)}在上、${nameOf(r5)}在下；第30格 ${nameOf(r6)}。`,
+      `终点规则：非第1格出发的团子第一次经过终点不结算，之后再次经过才可获胜。`
+    ]
+  };
+  prepareRoundRolls(s);
+  return s;
+}
+function applySecondHalfPreset(){
+  stopAutoRun();
+  if(selectedSimGroup()!=="A"){ alert("B 组目前还没有上半场结果，暂时只能使用随机开局模拟。"); return; }
+  const seed = getSeedForRun();
+  const src = getRankingSource(selectedManualRankingKey());
+  state = makeSecondHalfState(seed, src.ranking, src.label, selectedCamellyaEarlyRule());
+  state.log.unshift(`本局使用种子：${seed}`);
+  render();
+}
+function changeSimGroup(){ stopAutoRun(true); const seed=getSeedForRun(); state=makeInitial(seed, selectedCamellyaEarlyRule(), selectedSimGroup()); state.log.unshift(`已切换到${GROUPS[CURRENT_GROUP].label}，本局使用种子：${seed}`); render(); }
+function diceSymbol(v){ return {1:"⚀",2:"⚁",3:"⚂",4:"⚃",5:"⚄",6:"⚅"}[Number(v)] || "?"; }
+function hasActedInCurrentRound(s,id){ const idx=s.order.indexOf(id); return idx>=0 && idx < s.turnIndex; }
+function roundMinRoll(s){ const vals=DANGOS.map(d=>s.baseRolls?.[d.id]).filter(Boolean); return vals.length?Math.min(...vals):null; }
+function renderRoundDice(viewState=state){
+  const box=document.getElementById("roundDicePanel"); if(!box) return;
+  const current=viewState.order[viewState.turnIndex];
+  const min=viewState.group==="B"?roundMinRoll(viewState):null;
+  const items=viewState.order.map(id=>{
+    const isKing=id==="king";
+    const roll=viewState.baseRolls?.[id] || (isKing?"?":"?");
+    const currentCls=id===current?" current":"";
+    const doneCls=hasActedInCurrentRound(viewState,id)?" done":"";
+    const def=isKing?null:dangoDef(id);
+    let meta=isKing?"布大王 1-6":"基础点数";
+    let extraCls="";
+    if(def?.skill==="vision" && min!=null){
+      if(roll===min){ meta="视阈解明可触发"; extraCls=" min-ok"; }
+      else meta=`最低点 ${min}`;
+    }
+    if(def?.skill==="precision") meta="精密演算固定循环";
+    if(def?.skill==="future") meta="收束：仅 2/3";
+    const avatar=isKing?`<span class="piece king" style="display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center">布</span>`:`<img class="avatar" src="${imgOf(id)}" alt="${nameOf(id)}">`;
+    return `<div class="round-dice-card${currentCls}${doneCls}${extraCls}">
+      <div class="round-dice-name">${avatar}<span>${isKing?"布大王":nameOf(id)}</span></div>
+      <div class="round-dice-symbol">${diceSymbol(roll)}</div>
+      <div class="round-dice-meta">${meta}${doneCls?" · 已行动":currentCls?" · 当前":""}</div>
+    </div>`;
+  }).join("");
+  box.innerHTML=`<div class="round-dice-title"><span>🎲 本轮行动顺序骰子</span><span class="round-dice-sub">第 ${viewState.round} 回合；指定点数会同步更新此处显示</span></div><div class="round-dice-list">${items}</div>`;
+}
+function renderDice(){
+  const a=state.lastAction;
+  const cube=document.getElementById("diceCube");
+  const actor=document.getElementById("diceActor");
+  const sub=document.getElementById("diceSub");
+  const badge=document.getElementById("diceBadge");
+  const base=document.getElementById("diceBase");
+  const actual=document.getElementById("diceActual");
+  const carry=document.getElementById("diceCarry");
+  if(!cube||!actor||!sub) return;
+  if(!a){ cube.textContent="?"; actor.textContent="等待投掷"; sub.textContent="点击随机投掷、指定点数，或开启逐步自动运行。"; if(badge) badge.textContent="手动模式"; if(base) base.textContent="-"; if(actual) actual.textContent="-"; if(carry) carry.textContent="-"; return; }
+  cube.textContent=a.baseRoll;
+  cube.classList.remove("shake"); void cube.offsetWidth; cube.classList.add("shake");
+  actor.textContent=`${a.actorName} 行动`;
+  const noteText=a.notes&&a.notes.length?`；${a.notes.join("；")}`:"";
+  const carryText=a.carried&&a.carried.length?`携带：${a.carried.join("、")}`:"无携带";
+  sub.textContent=`${carryText}${noteText}`;
+  if(badge) badge.textContent=a.actor==="king"?"布大王 1–6":"团子 1–3";
+  if(base) base.textContent=a.baseRoll;
+  if(actual) actual.textContent=a.actualSteps;
+  if(carry) carry.textContent=a.carryCount;
+}
+function render(viewState=state, movingIds=[]){ const current=viewState.order[viewState.turnIndex]; document.getElementById("currentBox").innerHTML=`当前行动：<b>${current==="king"?"布大王":nameOf(current)}</b>，第 ${viewState.round} 回合`; renderDice(); renderRoundDice(viewState); const board=document.getElementById("board"); board.innerHTML=""; const tiles=Array.from({length:32},(_,i)=>i+1); for(const tile of tiles){ const type=tileType(tile); const div=document.createElement("div"); const typeCls=(type==="终点"||type==="起点")?"start":type==="推进"?"push":type==="阻遏"?"block":type==="裂隙"?"rift":""; div.className=`tile ${typeCls}`; div.innerHTML=`<div class="tile-head"><b>第${tile}格</b><span>${type}</span></div><div class="pieces"></div>`; const pieces=div.querySelector(".pieces"); const ids=stackAt(viewState,tile); if(viewState.king.active&&viewState.king.tile===tile&&!ids.includes("king")){ const k=document.createElement("span"); k.className=`piece king ${movingIds.includes("king")?"king-moving":""}`; k.textContent="布"; pieces.appendChild(k); } for(const id of ids){ if(id==="king"){ const k=document.createElement("span"); k.className=`piece king ${movingIds.includes("king")?"king-moving":""}`; k.title="布大王"; k.textContent="布"; pieces.appendChild(k); continue; } const p=document.createElement("span"); p.className=`piece piece-img ${clsOf(id)} ${movingIds.includes(id)?"piece-moving":""}`; p.title=nameOf(id); const im=document.createElement("img"); im.src=imgOf(id); im.alt=nameOf(id); im.onerror=()=>{ p.textContent=shortOf(id); }; p.appendChild(im); pieces.appendChild(p); } board.appendChild(div); } const logBox=document.getElementById("log"); logBox.innerHTML=viewState.log.slice(-160).map(x=>`<div>${x}</div>`).join(""); logBox.scrollTop=logBox.scrollHeight; }
+function sleep(ms){ return new Promise(resolve=>setTimeout(resolve,ms)); }
+let manualBusy=false;
+function makeAnimationFrameState(before, action, tile){
+  const temp=cloneState(before);
+  temp.lastAction=action;
+  const ids=action.groupIds||[];
+  if(action.actor==="king"){
+    ensureKingActive(temp);
+    const from=temp.king.tile;
+    const moving=ids.length?ids:kingGroup(temp);
+    setStack(temp,from,stackAt(temp,from).filter(id=>!moving.includes(id)));
+    mergeMovingGroupOnTile(temp,moving,tile,"king");
+    return temp;
+  }
+  if(!ids.length) return temp;
+  const from=temp.status[ids[0]].tile;
+  setStack(temp,from,stackAt(temp,from).filter(id=>!ids.includes(id)));
+  mergeMovingGroupOnTile(temp,ids,tile,"normal");
+  return temp;
+}
+let autoFinishTimer = null;
+let autoRunning = false;
+let manualRunToken = 0;
+
+async function performAnimatedTurn(forcedRoll=null, suppressStop=false, suppressAlert=false){
+  if(manualBusy) return false;
+  if(!suppressStop) stopAutoRun(false);
+  const myToken = manualRunToken;
+  const before=cloneState(state);
+  const next=advanceTurn(state,forcedRoll);
+  const action=next.lastAction;
+  const path=(action&&action.path)||[];
+  const movingIds=(action&&action.groupIds)||[];
+  const delayBase=Math.max(80,Math.min(2000,Number(document.getElementById("autoStepDelay")?.value||500)));
+  const frameDelay=Math.max(90,Math.min(420,Math.floor(delayBase*0.55)));
+  if(path.length>1){
+    manualBusy=true;
+    for(let i=1;i<path.length;i++){
+      if(myToken !== manualRunToken){ manualBusy=false; return false; }
+      const temp=makeAnimationFrameState(before,action,path[i]);
+      render(temp,movingIds);
+      await sleep(frameDelay);
+    }
+    manualBusy=false;
+  }
+  if(myToken !== manualRunToken) return false;
+  state=next;
+  render();
+  if(state.winner && !suppressAlert) alert(`${nameOf(state.winner)} 获胜！`);
+  return true;
+}
+function stopAutoRun(cancelCurrent=false){
+  const btn=document.getElementById("autoFinishBtn");
+  if(autoFinishTimer){ clearTimeout(autoFinishTimer); autoFinishTimer=null; }
+  autoRunning=false;
+  if(cancelCurrent){ manualRunToken++; manualBusy=false; }
+  if(btn) btn.textContent="逐步自动跑完整局";
+}
+function resetManual(){
+  stopAutoRun(true);
+  const seed=getSeedForRun();
+  state=makeInitial(seed, selectedCamellyaEarlyRule(), selectedSimGroup());
+  state.log.unshift(`本局使用种子：${seed}`);
+  render();
+}
+async function randomStep(){ await performAnimatedTurn(null,false); }
+function showManualHint(message, type="info"){
+  const el=document.getElementById("manualHint");
+  if(el){
+    el.textContent=message;
+    el.className="manual-hint" + (type==="warn"?" warn":"");
+    el.style.display="block";
+    clearTimeout(showManualHint._timer);
+    showManualHint._timer=setTimeout(()=>{ el.style.display="none"; }, 4500);
+  }
+}
+async function forcedStep(){
+  const current=state.order[state.turnIndex];
+  if(current!=="king"){
+    const def=dangoDef(current);
+    if(def.skill==="precision"){
+      const msg="莫宁触发「精密演算」：点数固定按 3 → 2 → 1 循环，无法手动指定，将按本轮固定点数执行。";
+      showManualHint(msg,"warn");
+      state.log.push(msg);
+      render();
+      await performAnimatedTurn(null,false);
+      return;
+    }
+  }
+  const input=document.getElementById("manualRoll");
+  let roll=Number(input.value||1);
+  if(current==="king") roll=Math.max(1,Math.min(6,roll));
+  else {
+    const def=dangoDef(current);
+    if(def.skill==="future"){
+      if(roll<2){
+        roll=2;
+        const msg="守岸人触发「收束的未来」：点数只能为 2 或 3，已将本次指定点数修正为 2。";
+        showManualHint(msg,"warn");
+        state.log.push(msg);
+      } else if(roll>3){
+        roll=3;
+        const msg="守岸人触发「收束的未来」：点数只能为 2 或 3，已将本次指定点数修正为 3。";
+        showManualHint(msg,"warn");
+        state.log.push(msg);
+      }
+      roll=Math.max(2,Math.min(3,roll));
+    } else roll=Math.max(1,Math.min(3,roll));
+  }
+  input.value=roll;
+  // 先同步到本轮基础骰子表，让骰子面板和后续技能判断立即一致。
+  if(!state.baseRolls) state.baseRolls={};
+  state.baseRolls[current]=roll;
+  render();
+  await performAnimatedTurn(roll,false);
+}
+
+function autoFinishManual(){
+  const btn=document.getElementById("autoFinishBtn");
+  if(autoRunning){ stopAutoRun(false); return; }
+  if(state.winner){ alert(`${nameOf(state.winner)} 已经获胜，请先重置手动局。`); return; }
+  autoRunning=true;
+  btn.textContent="逐步自动运行中，点击停止";
+  let guard=0;
+  async function tick(){
+    if(!autoRunning) return;
+    if(state.winner){
+      stopAutoRun(false);
+      alert(`${nameOf(state.winner)} 获胜！`);
+      return;
+    }
+    if(guard>=1200){
+      stopAutoRun(false);
+      alert("已达到安全步数上限，自动运行停止。可检查规则或继续手动投掷。");
+      return;
+    }
+    // 每次 tick 只执行一个行动单位，并在该行动内部按格子逐步播放。
+    const ok = await performAnimatedTurn(null,true,true);
+    if(!ok || !autoRunning) return;
+    guard++;
+    const delayInput=document.getElementById("autoStepDelay");
+    const delay=Math.max(80,Math.min(2000,Number(delayInput?.value||500)));
+    autoFinishTimer=setTimeout(tick,delay);
+  }
+  tick();
+}
+
+function runBatch(){
+  const n=Math.max(1,Math.min(200000,Number(document.getElementById("count").value||1000)));
+  const autoSeed=document.getElementById("autoSeed").checked;
+  const seed=getSeedForRun();
+  const group=selectedSimGroup();
+  let startMode=document.getElementById("batchSecondHalf")?.checked ? "secondHalf" : "random";
+  if(group!=="A" && startMode==="secondHalf"){ alert("B 组目前还没有上半场结果，批量模拟将使用随机开局。"); startMode="random"; }
+  const rankingKey=selectedBatchRankingKey();
+  const camellyaEarlyTrigger=selectedCamellyaEarlyRule();
+  const src=getRankingSource(rankingKey);
+  const box=document.getElementById("resultBox");
+  const btn=document.getElementById("runBtn");
+  btn.disabled=true; btn.textContent="模拟中...";
+  box.className=""; box.style.cssText="";
+  box.innerHTML=`<div class="progress-wrap"><div class="progress-label"><span>正在模拟（${startMode==="secondHalf"?"下半场固定开局":"随机开局"}）</span><b id="progressText">0 / ${n}</b></div><div class="progress-bar"><div id="progressFill"></div></div></div><div class="small">正在初始化随机剧本... 当前种子已更新到输入框；开局模式：${startMode==="secondHalf"?`${src.label} 固定开局`:"随机开局"}</div>`;
+  runBatchAsync(n,seed,autoSeed,(r)=>{
+    const pct=(r.done/r.total*100).toFixed(1);
+    const pt=document.getElementById("progressText");
+    const pf=document.getElementById("progressFill");
+    if(pt) pt.textContent=`${r.done} / ${r.total}（${pct}%）`;
+    if(pf) pf.style.width=`${pct}%`;
+    // 每一批都展示临时排名，让用户知道程序还在工作。
+    box.innerHTML=`<div class="progress-wrap"><div class="progress-label"><span>正在模拟（${startMode==="secondHalf"?"下半场固定开局":"随机开局"}）</span><b id="progressText">${r.done} / ${r.total}（${pct}%）</b></div><div class="progress-bar"><div id="progressFill" style="width:${pct}%"></div></div></div>`+formatResults(r.rows,r.seed,r.done);
+  },(r)=>{
+    btn.disabled=false; btn.textContent="批量模拟";
+    box.innerHTML=formatResults(r.rows,r.seed,r.done);
+    alert(`模拟完成：最高晋级概率为 ${r.rows[0].name}，${(r.rows[0].advanceRate*100).toFixed(2)}%`);
+  },startMode,rankingKey,camellyaEarlyTrigger,group);
+}
+
+function closeVersionModal(){
+  const modal=document.getElementById("versionModal");
+  if(modal) modal.style.display="none";
+}
+
+render();
+renderBracket();
+</script>
+</body>
+</html>
