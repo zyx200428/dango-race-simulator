@@ -426,6 +426,10 @@ function renderTournamentBracket(){
 function renderBracket(){ renderTournamentBracket(); }
 function renderTodayRanking(){ renderTournamentBracket(); }
 
+let manualBusy=false;
+let autoFinishTimer = null;
+let autoRunning = false;
+let manualRunToken = 0;
 let state = makeInitial(20260509, false, "A");
 
 function applySecondHalfPreset(){
@@ -492,7 +496,6 @@ function renderDice(){
 }
 function render(viewState=state, movingIds=[]){ const current=viewState.order[viewState.turnIndex]; document.getElementById("currentBox").innerHTML=`当前行动：<b>${current==="king"?"布大王":nameOf(current)}</b>，第 ${viewState.round} 回合`; renderDice(); renderRoundDice(viewState); const board=document.getElementById("board"); board.innerHTML=""; const tiles=Array.from({length:32},(_,i)=>i+1); for(const tile of tiles){ const type=tileType(tile); const div=document.createElement("div"); const typeCls=(type==="终点"||type==="起点")?"start":type==="推进"?"push":type==="阻遏"?"block":type==="裂隙"?"rift":""; div.className=`tile ${typeCls}`; div.innerHTML=`<div class="tile-head"><b>第${tile}格</b><span>${type}</span></div><div class="pieces"></div>`; const pieces=div.querySelector(".pieces"); const ids=stackAt(viewState,tile); if(viewState.king.active&&viewState.king.tile===tile&&!ids.includes("king")){ const k=document.createElement("span"); k.className=`piece king ${movingIds.includes("king")?"king-moving":""}`; k.textContent="布"; pieces.appendChild(k); } for(const id of ids){ if(id==="king"){ const k=document.createElement("span"); k.className=`piece king ${movingIds.includes("king")?"king-moving":""}`; k.title="布大王"; k.textContent="布"; pieces.appendChild(k); continue; } const p=document.createElement("span"); p.className=`piece piece-img ${clsOf(id)} ${movingIds.includes(id)?"piece-moving":""}`; p.title=nameOf(id); const im=document.createElement("img"); im.src=imgOf(id); im.alt=nameOf(id); im.onerror=()=>{ p.textContent=shortOf(id); }; p.appendChild(im); pieces.appendChild(p); } board.appendChild(div); } const logBox=document.getElementById("log"); logBox.innerHTML=viewState.log.slice(-160).map(x=>`<div>${x}</div>`).join(""); logBox.scrollTop=logBox.scrollHeight; }
 function sleep(ms){ return new Promise(resolve=>setTimeout(resolve,ms)); }
-let manualBusy=false;
 function makeAnimationFrameState(before, action, tile){
   const temp=cloneState(before);
   temp.lastAction=action;
@@ -511,9 +514,6 @@ function makeAnimationFrameState(before, action, tile){
   mergeMovingGroupOnTile(temp,ids,tile,"normal");
   return temp;
 }
-let autoFinishTimer = null;
-let autoRunning = false;
-let manualRunToken = 0;
 
 async function performAnimatedTurn(forcedRoll=null, suppressStop=false, suppressAlert=false){
   if(manualBusy) return false;

@@ -4,6 +4,7 @@ let CURRENT_GROUP = "A";
 let DANGOS = groupDangos(CURRENT_GROUP);
 function setCurrentGroup(group){ CURRENT_GROUP = GROUPS[group] ? group : "A"; DANGOS = groupDangos(CURRENT_GROUP); }
 const SPECIAL = {1:"终点",2:"起点",4:"推进",7:"裂隙",11:"阻遏",12:"推进",17:"推进",21:"裂隙",24:"推进",29:"阻遏"};
+const AEMIS_MIDPOINT = 18;
 const tileType = n => SPECIAL[n] || "普通";
 const nextTile = (n, step=1) => ((n - 1 + step) % 32) + 1;
 const prevTile = (n, step=1) => ((n - 1 - step + 3200) % 32) + 1;
@@ -215,9 +216,9 @@ function recordAemisMidpointPass(s){
   const path=(s.lastAction && s.lastAction.path) || [];
   const moved=(s.lastAction && s.lastAction.groupIds) || [];
   const includesAemis = moved.includes("aemis") || s.lastAction?.actor === "aemis";
-  if(!includesAemis || !path.includes(18)) return;
+  if(!includesAemis || !path.includes(AEMIS_MIDPOINT)) return;
   st.hasPassedMidpoint=true;
-  s.log.push("爱弥斯经过第18格中点，进入电子幽灵待触发状态；仅在她自己的主动行动结束后检查传送。");
+  s.log.push(`爱弥斯经过第${AEMIS_MIDPOINT}格中点，进入电子幽灵待触发状态；仅在她自己的主动行动结束后检查传送。`);
 }
 function checkAemisTeleportAfterOwnAction(s, actorId){
   if(actorId!=="aemis" || s.group!=="B" || !s.status.aemis || s.winner) return;
