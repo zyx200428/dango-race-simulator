@@ -14,7 +14,7 @@ const imgOf = id => DANGOS.find(d=>d.id===id)?.img || "";
 function rngFromSeed(seed){ let s = Number(seed) >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
 function randInt(rng,a,b){ return Math.floor(rng() * (b-a+1)) + a; }
 function shuffle(list,rng){ const a=[...list]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
-function initialStatus(){ return Object.fromEntries(DANGOS.map(d=>[d.id,{tile:2,lastRoll:null,metKing:false,comeback:false,comebackUsed:false,canFinish:true,rollCount:0,ghostUsed:false,ghostPassedMidpoint:false,ghostWaiting:false,ghostConsumed:false}])); }
+function initialStatus(){ return Object.fromEntries(DANGOS.map(d=>[d.id,{tile:2,lastRoll:null,metKing:false,comeback:false,comebackUsed:false,canFinish:true,rollCount:0,ghostUsed:false,hasPassedMidpoint:false}])); }
 function prepareRoundRolls(s){
   s.baseRolls = {};
   for(const d of DANGOS){
@@ -25,7 +25,7 @@ function prepareRoundRolls(s){
   }
   if(s.round >= 3) s.baseRolls.king = randInt(s.rng,1,6);
 }
-function makeInitial(seed, camellyaEarlyTrigger=false, group=CURRENT_GROUP){ setCurrentGroup(group); const rng=rngFromSeed(seed); const opening=shuffle(DANGOS.map(d=>d.id), rng); const s={ seed, rng, group:CURRENT_GROUP, startMode:"random", round:1, turnIndex:0, order:opening, baseRolls:{}, stacks:{1:["king"],2:[...opening]}, status:initialStatus(), king:{tile:1,active:true}, winner:null, lastAction:null, camellyaEarlyTrigger, ghostMode:getGhostMode(), log:[`当前模拟组别：${GROUPS[CURRENT_GROUP].label}。`,`布大王开局位于第1格终点，第3回合开始移动。`,`绯雪相遇规则：${camellyaEarlyTrigger?"第3回合后才可触发":"第3回合后才可触发"}。`,`开局顺序 / 第2格起点堆叠：${opening.map(shortOf).join(" → ")}`] }; prepareRoundRolls(s); return s; }
+function makeInitial(seed, camellyaEarlyTrigger=false, group=CURRENT_GROUP){ setCurrentGroup(group); const rng=rngFromSeed(seed); const opening=shuffle(DANGOS.map(d=>d.id), rng); const s={ seed, rng, group:CURRENT_GROUP, startMode:"random", round:1, turnIndex:0, order:opening, baseRolls:{}, stacks:{1:["king"],2:[...opening]}, status:initialStatus(), king:{tile:1,active:true}, winner:null, lastAction:null, camellyaEarlyTrigger, log:[`当前模拟组别：${GROUPS[CURRENT_GROUP].label}。`,`布大王开局位于第1格终点，第3回合开始移动。`,`绯雪相遇规则：${camellyaEarlyTrigger?"第3回合后才可触发":"第3回合后才可触发"}。`,`开局顺序 / 第2格起点堆叠：${opening.map(shortOf).join(" → ")}`] }; prepareRoundRolls(s); return s; }
 function cloneState(s){ setCurrentGroup(s.group||CURRENT_GROUP); return {...s, baseRolls:{...(s.baseRolls||{})}, stacks:Object.fromEntries(Object.entries(s.stacks).map(([k,v])=>[k,[...v]])), status:Object.fromEntries(Object.entries(s.status).map(([k,v])=>[k,{...v}])), king:{...s.king}, order:[...s.order], log:[...s.log]}; }
 function stackAt(s,t){ return s.stacks[t] || []; }
 function setStack(s,t,st){ const clean=[...new Set(st)]; if(!clean.length) delete s.stacks[t]; else s.stacks[t]=clean; }
@@ -192,61 +192,38 @@ function teleportDangoToTop(s,id,targetTile){
   setStack(s,targetTile,[id,...st]);
   s.status[id].tile=targetTile;
 }
-function ghostModeOf(s){ return s.ghostMode || getGhostMode(); }
-function isImmediateGhostMode(s){ return ghostModeOf(s).startsWith("immediate"); }
-function ghostWaitsOnNoTarget(s){ return ghostModeOf(s).endsWith("wait"); }
-function getAemisStatus(s){ return s.status && s.status.aemis; }
-function attemptAemisTeleport(s, reason="", options={}){
+function attemptAemisTeleport(s, reason=""){
   if(s.group!=="B" || !s.status.aemis || s.winner) return false;
   const st=s.status.aemis;
-  if(st.ghostUsed || st.ghostConsumed) return false;
+  if(st.ghostUsed || !st.hasPassedMidpoint) return false;
   const near=findNearestDangoAhead(s, st.tile, "aemis");
+  const prefix = reason ? `${reason}，` : "";
   if(near){
     teleportDangoToTop(s,"aemis",near.tile);
     st.ghostUsed=true;
-    st.ghostConsumed=true;
-    st.ghostWaiting=false;
-    const prefix = reason ? `${reason}，` : "";
-    s.log.push(`${prefix}爱弥斯触发电子幽灵登场，传送到前方最近的${nameOf(near.id)}所在格顶端。`);
+    s.log.push(`${prefix}爱弥斯触发电子幽灵登场，单独传送到前方最近的${nameOf(near.id)}所在格顶端。`);
     if(s.lastAction){ s.lastAction.notes.push(`电子幽灵→第${near.tile}格`); s.lastAction.path.push(near.tile); }
     return true;
   }
-  if(options.consumeOnFail){
-    st.ghostConsumed=true;
-    st.ghostWaiting=false;
-    const prefix = reason ? `${reason}，` : "";
-    s.log.push(`${prefix}爱弥斯前方没有其他非布大王团子，电子幽灵登场失效，本场不再触发。`);
-  } else if(options.enterWait){
-    if(!st.ghostWaiting){
-      const prefix = reason ? `${reason}，` : "";
-      s.log.push(`${prefix}爱弥斯前方暂时没有目标，进入等待状态；之后任意单位移动结束后继续检查。`);
-    }
-    st.ghostWaiting=true;
-  } else if(!options.quiet){
-    const prefix = reason ? `${reason}，` : "";
-    s.log.push(`${prefix}爱弥斯前方暂时没有目标。`);
-  }
+  s.log.push(`${prefix}爱弥斯前方到终点之间暂时没有其他非布大王团子，保持待触发状态。`);
   return false;
 }
-function processAemisMidpointAfterMove(s){
+function recordAemisMidpointPass(s){
   if(s.group!=="B" || !s.status.aemis || s.winner) return;
   const st=s.status.aemis;
-  if(st.ghostUsed || st.ghostConsumed) return;
+  if(st.ghostUsed || st.hasPassedMidpoint) return;
   const path=(s.lastAction && s.lastAction.path) || [];
   const moved=(s.lastAction && s.lastAction.groupIds) || [];
   const includesAemis = moved.includes("aemis") || s.lastAction?.actor === "aemis";
-  if(!includesAemis) return;
-  if(!path.includes(17)) return;
-  st.ghostPassedMidpoint=true;
-  const mode=ghostModeOf(s);
-  const reason = mode.startsWith("immediate") ? "爱弥斯经过第17格中点，立刻判定" : "爱弥斯经过第17格中点，本次移动结束后判定";
-  attemptAemisTeleport(s, reason, { enterWait: ghostWaitsOnNoTarget(s), consumeOnFail: !ghostWaitsOnNoTarget(s) });
+  if(!includesAemis || !path.includes(18)) return;
+  st.hasPassedMidpoint=true;
+  s.log.push("爱弥斯经过第18格中点，进入电子幽灵待触发状态；仅在她自己的主动行动结束后检查传送。");
 }
-function checkAemisWaitingAfterAction(s){
-  if(s.group!=="B" || !s.status.aemis || s.winner) return;
+function checkAemisTeleportAfterOwnAction(s, actorId){
+  if(actorId!=="aemis" || s.group!=="B" || !s.status.aemis || s.winner) return;
   const st=s.status.aemis;
-  if(st.ghostUsed || st.ghostConsumed || !st.ghostWaiting) return;
-  attemptAemisTeleport(s, "爱弥斯处于等待状态，移动结束后再次检查", { enterWait:false, consumeOnFail:false, quiet:true });
+  if(st.ghostUsed || !st.hasPassedMidpoint) return;
+  attemptAemisTeleport(s, "爱弥斯主动行动结束");
 }
 function stepDango(s,id,forcedRoll=null){
   if(s.winner) return;
@@ -281,10 +258,10 @@ function stepDango(s,id,forcedRoll=null){
   moveForward(s,group,steps,id,nameOf(id));
 
   if(s.group==="A" && id==="cartethyia"&&!info.comebackUsed&&!s.winner){ const r=rank(s); if(r[r.length-1]===id){ info.comeback=true; info.comebackUsed=true; s.log.push("卡提希娅处于最后一名，激活追赶技能。"); } }
-  if(s.group==="B"){ processAemisMidpointAfterMove(s); checkAemisWaitingAfterAction(s); }
+  if(s.group==="B"){ recordAemisMidpointPass(s); checkAemisTeleportAfterOwnAction(s,id); }
 }
 function buildRoundOrder(s){ const base=DANGOS.map(d=>d.id); return s.round>=3 ? shuffle([...base,"king"], s.rng) : shuffle(base, s.rng); }
-function advanceTurn(inputState,forcedRoll=null){ const s=cloneState(inputState); if(s.winner) return s; if(s.round>=3) ensureKingActive(s); const current=s.order[s.turnIndex]; if(current==="king"){ kingMove(s,forcedRoll); checkAemisWaitingAfterAction(s); } else stepDango(s,current,forcedRoll); if(s.winner){ const last=rank(s).at(-1); s.log.push(`比赛结束：最后一名为 ${nameOf(last)}，布大王位于第${s.king.tile}格。`); return s; } s.turnIndex++; if(s.turnIndex>=s.order.length){ checkKingReturnAtRoundEnd(s); s.round++; s.turnIndex=0; s.order=buildRoundOrder(s); prepareRoundRolls(s); s.log.push(`--- 第 ${s.round} 回合，行动顺序：${s.order.map(x=>x==="king"?"布":shortOf(x)).join(" → ")} ---`); } return s; }
+function advanceTurn(inputState,forcedRoll=null){ const s=cloneState(inputState); if(s.winner) return s; if(s.round>=3) ensureKingActive(s); const current=s.order[s.turnIndex]; if(current==="king"){ kingMove(s,forcedRoll); recordAemisMidpointPass(s); } else stepDango(s,current,forcedRoll); if(s.winner){ const last=rank(s).at(-1); s.log.push(`比赛结束：最后一名为 ${nameOf(last)}，布大王位于第${s.king.tile}格。`); return s; } s.turnIndex++; if(s.turnIndex>=s.order.length){ checkKingReturnAtRoundEnd(s); s.round++; s.turnIndex=0; s.order=buildRoundOrder(s); prepareRoundRolls(s); s.log.push(`--- 第 ${s.round} 回合，行动顺序：${s.order.map(x=>x==="king"?"布":shortOf(x)).join(" → ")} ---`); } return s; }
 function simulateOne(seed,maxTurns=1000,startMode="random", rankingKey=DEFAULT_RANKING_KEY, camellyaEarlyTrigger=true, group=CURRENT_GROUP){ setCurrentGroup(group); const src=getRankingSource(rankingKey); let s=(group==="A" && startMode==="secondHalf")?makeSecondHalfState(seed, src.ranking, src.label, camellyaEarlyTrigger):makeInitial(seed, camellyaEarlyTrigger, group); let safe=0; while(!s.winner&&safe++<maxTurns) s=advanceTurn(s); if(!s.winner) s.winner=rank(s)[0]; return s; }
 function finalRanking(s){
   const base=rank(s).filter(id=>id!==s.winner);
@@ -347,7 +324,7 @@ function makeSecondHalfState(seed, ranking = getRankingSource(DEFAULT_RANKING_KE
   status[r1].canFinish = true;
   const firstOrder = shuffle(DANGOS.map(d=>d.id), rng);
   const s={
-    seed, rng, group:"A", startMode:"secondHalf", round:1, turnIndex:0, order:firstOrder, baseRolls:{}, stacks, status, ghostMode:getGhostMode(),
+    seed, rng, group:"A", startMode:"secondHalf", round:1, turnIndex:0, order:firstOrder, baseRolls:{}, stacks, status,
     king:{tile:1,active:true}, winner:null, lastAction:null, camellyaEarlyTrigger,
     log:[
       `已应用${sourceLabel}的下半场固定开局。`,

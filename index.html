@@ -201,8 +201,8 @@
     <div class="modal-body">
       <p><b>v18 系列是一次较大的结构与功能更新。</b>当前版本已支持国服 A / B 组切换，并保留夺冠概率、晋级概率、淘汰概率、平均名次、手动逐步模拟等核心功能。</p>
       <p><b>主要新增内容：</b>加入国服 B 组 6 位团子、头像和技能；删除亚服相关选项，当前版本先专注国服小组赛；底层整理为统一团子库，方便后续加入 C 组、淘汰赛和总决赛。</p>
-      <p><b>规则与技能更新：</b>绯雪固定为第 3 回合开始遇到布大王才触发；爱弥斯「电子幽灵登场」固定中点为第 17 格，并提供 4 种规则假设，默认使用“移动结束后判定，前方无人则等待”。</p>
-      <div class="warn"><b>手动模式优化：</b>本轮骰子会按行动顺序显示；指定点数会同步更新骰子显示、底层点数表和技能判断。千咲最低点、守岸人 2/3 限制、莫宁 3/2/1 循环、爱弥斯目标搜索等问题已做修复。</div>
+      <p><b>规则与技能更新：</b>绯雪固定为第 3 回合开始遇到布大王才触发；爱弥斯「电子幽灵登场」固定中点为第 18 格，经过后进入待触发状态，仅在她自己的主动行动结束后检查传送。</p>
+      <div class="warn"><b>手动模式优化：</b>本轮骰子会按行动顺序显示；指定点数会同步更新骰子显示、底层点数表和技能判断。千咲最低点、守岸人 2/3 限制、莫宁 3/2/1 循环、爱弥斯最终传送规则等问题已做修复。</div>
       <p><b>赛事展示更新：</b>v18.1.4 已加入国服 A 组正式结果、晋级名单与谢幕赛名单，并新增更接近游戏风格的晋级图模块。B 组与 C 组结果将在直播更新后继续补充。</p>
       <div class="warn">模拟结果仍然仅供参考。部分技能细节来自直播观察和规则文本推断，实际结算以游戏内表现为准。</div>
     </div>
@@ -224,9 +224,9 @@
       <li><b>v18 大版本：</b>删除亚服相关选项和数据，当前版本先专注国服 A / B 组小组赛模拟，减少界面和数据源混乱。</li>
       <li><b>v18 大版本：</b>重构底层数据结构，建立统一团子库 <code>DANGO_LIBRARY</code> 和基础比赛配置 <code>MATCH_CONFIGS</code>，为后续 C 组、淘汰赛、总决赛复用团子数据做准备。</li>
       <li><b>v18 大版本：</b>固定绯雪技能规则：第 1、2 回合经过布大王不触发；第 3 回合开始与布大王相遇后触发。</li>
-      <li><b>v18.1：</b>爱弥斯「电子幽灵登场」中点固定为第 17 格，删除第 17 / 18 格中点切换，减少规则分歧。</li>
-      <li><b>v18.1：</b>新增爱弥斯 4 种规则假设：经过中点立刻判定 / 移动结束后判定，以及前方无人时等待 / 失效。默认采用“移动结束后判定；前方无人则等待”。</li>
-      <li><b>v18.1：</b>明确爱弥斯等待状态不会让她停止移动；她仍会正常主动移动、被带动、触发机关，并且整场最多成功传送一次。</li>
+      <li><b>v18.1：</b>爱弥斯「电子幽灵登场」最终规则固定：经过第 18 格进入待触发状态，不立刻传送。</li>
+      <li><b>v18.1：</b>爱弥斯只有在自己的主动行动结束后才检查传送；前方到第 1 格终点之间无人则继续等待，不消耗技能。</li>
+      <li><b>v18.1：</b>爱弥斯成功触发时只让自己从当前堆叠中脱离，传送到前方最近非布大王团子所在格顶端，整场最多一次。</li>
       <li><b>v18.1.1：</b>修复批量模拟因爱弥斯中点旧函数残留导致无法运行的问题，恢复 A / B 组批量模拟稳定性。</li>
       <li><b>v18.1.2：</b>手动模式新增“本轮行动顺序骰子”面板，按本回合行动顺序显示各团子的基础点数、当前行动者和已行动状态。</li>
       <li><b>v18.1.2：</b>修复手动指定点数与底层基础骰子表不同步的问题。指定点数后，骰子显示、实际移动和技能判定会同步更新。</li>
@@ -258,14 +258,7 @@
         <option value="A">国服 A 组</option>
         <option value="B">国服 B 组（上半场）</option>
       </select>
-      <label>B 组爱弥斯技能规则</label>
-      <select id="ghostMode" class="select-input">
-        <option value="end_wait">默认：移动结束后判定；前方无人则等待</option>
-        <option value="immediate_wait">经过中点立刻判定；前方无人则等待</option>
-        <option value="immediate_fail">经过中点立刻判定；前方无人则失效</option>
-        <option value="end_fail">移动结束后判定；前方无人则失效</option>
-      </select>
-      <div class="notice" style="margin:8px 0 10px">爱弥斯中点固定为第17格。等待状态不会停止移动；任意团子或布大王移动结束后都会再次检查一次。</div>
+      <div class="notice" style="margin:8px 0 10px">爱弥斯中点固定为第 18 格。经过第 18 格后进入待触发状态；只有爱弥斯自己的主动行动结束后才检查是否传送；前方无人则等待；成功传送一次后技能结束。</div>
       <div class="notice" style="margin:8px 0 10px">B 组当前仅支持上半场随机开局；上半场结果出来后再加入 B 组下半场固定开局。</div>
       <div class="dice-panel" id="dicePanel">
         <div class="dice-top">
@@ -371,7 +364,6 @@ function selectedBatchRankingKey(){ return document.getElementById("batchRanking
 function selectedDisplayRankingKey(){ return DEFAULT_RANKING_KEY; }
 function selectedCamellyaEarlyRule(){ return false; }
 function selectedSimGroup(){ return document.getElementById("simGroup")?.value || CURRENT_GROUP || "A"; }
-function getGhostMode(){ return document.getElementById("ghostMode")?.value || "end_wait"; }
 function nameOfAny(id){ return DANGO_LIBRARY[id]?.name || id; }
 function imgOfAny(id){ return DANGO_LIBRARY[id]?.img || `assets/${id}.png`; }
 function bracketAvatar(id){ return imgOfAny(id); }

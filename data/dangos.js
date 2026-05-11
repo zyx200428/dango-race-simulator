@@ -9,7 +9,7 @@ const DANGO_LIBRARY = {
   chisaki: { id:"chisaki", name:"千咲", short:"千", group:"B", cls:"roccia", img:"assets/B1.png", skillName:"视阈解明", skillDescription:"若基础点数为本轮最低点之一，额外前进 2 格。", skillType:"round_min_roll_bonus", skill:"vision", skillParams:{ bonus:2 } },
   moning: { id:"moning", name:"莫宁", short:"莫", group:"B", cls:"phoebe", img:"assets/B2.png", skillName:"精密演算", skillDescription:"点数固定按 3 / 2 / 1 循环。", skillType:"fixed_roll_cycle", skill:"precision", skillParams:{ cycle:[3,2,1] } },
   linne: { id:"linne", name:"琳奈", short:"琳", group:"B", cls:"cartethyia", img:"assets/B3.png", skillName:"炫彩时刻！", skillDescription:"60% 双倍移动，20% 无法移动，20% 正常移动。", skillType:"double_or_stun", skill:"colorful", skillParams:{ doubleChance:0.6, stunChance:0.2 } },
-  aemis: { id:"aemis", name:"爱弥斯", short:"爱", group:"B", cls:"camellya", img:"assets/B4.png", skillName:"电子幽灵登场", skillDescription:"每场最多传送一次。经过第17格后，根据所选规则判定是否传送到前方最近团子顶端。", skillType:"midpoint_teleport", skill:"ghost", skillParams:{ midpoint:17 } },
+  aemis: { id:"aemis", name:"爱弥斯", short:"爱", group:"B", cls:"camellya", img:"assets/B4.png", skillName:"电子幽灵登场", skillDescription:"每场最多传送一次。经过第18格后进入待触发状态；仅在爱弥斯自己的主动行动结束后，若前方到终点之间存在最近非布大王团子，则单独传送到其所在格顶端；前方无人则继续等待。", skillType:"midpoint_teleport", skill:"ghost", skillParams:{ midpoint:18 } },
   shorekeeper: { id:"shorekeeper", name:"守岸人", short:"守", group:"B", cls:"cantarella", img:"assets/B5.png", skillName:"收束的未来", skillDescription:"骰子只会掷出 2 或 3。", skillType:"roll_only_2_or_3", skill:"future", skillParams:{ values:[2,3] } },
   carlotta: { id:"carlotta", name:"珂莱塔", short:"珂", group:"B", cls:"danjin", img:"assets/B6.png", skillName:"利润加倍", skillDescription:"28% 概率按骰子的双倍点数前进。", skillType:"double_roll_chance", skill:"profit", skillParams:{ chance:0.28 } }
 };
