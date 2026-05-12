@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>小团快跑模拟器 v18.1.4</title>
+  <title>小团快跑模拟器 v18.2.0</title>
   <style>
     :root { --bg:#f8fafc; --card:#fff; --text:#0f172a; --muted:#64748b; --border:#e2e8f0; --dark:#111827; }
     * { box-sizing: border-box; }
@@ -16,7 +16,7 @@
     .card { background:var(--card); border:1px solid var(--border); border-radius:18px; box-shadow:0 1px 3px rgba(15,23,42,.06); padding:16px; }
     .title { font-weight:700; display:flex; gap:8px; align-items:center; margin-bottom:12px; }
     label { display:block; font-size:14px; color:#334155; margin:12px 0 6px; }
-    input[type="number"], input[type="text"] { width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; background:white; }
+    input[type="number"], input[type="text"], .select-input { width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; background:white; }
     button { border:0; border-radius:12px; padding:10px 12px; font-weight:700; cursor:pointer; background:#0f172a; color:white; }
     button.secondary { background:white; color:#0f172a; border:1px solid #cbd5e1; }
     button.ghost { background:transparent; color:#0f172a; }
@@ -171,6 +171,11 @@
     .modal-actions button { min-width:140px; }
     .manual-hint { display:none; margin:8px 0 10px; padding:10px 12px; border-radius:14px; background:#ecfeff; border:1px solid #67e8f9; color:#155e75; font-size:13px; line-height:1.55; }
     .manual-hint.warn { background:#fff7ed; border-color:#fdba74; color:#9a3412; }
+    .custom-ranking-box { margin-top:12px; padding:12px; border:1px solid #bfdbfe; border-radius:16px; background:#eff6ff; }
+    .custom-ranking-title { font-weight:900; color:#1e40af; margin-bottom:8px; }
+    .custom-ranking-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .custom-ranking-grid label { margin-top:6px; font-size:12px; }
+    .custom-ranking-note { font-size:12px; color:#475569; line-height:1.5; margin-top:8px; }
 
 
     .round-dice-panel{margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:16px;background:#f8fafc;}
@@ -196,14 +201,14 @@
   <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="versionModalTitle">
     <div class="modal-head">
       <b id="versionModalTitle">v18 系列大版本更新提示</b>
-      <span>新增 B 组模拟、统一团子库、B 组技能修复与手动模式优化</span>
+      <span>新增 C 组模拟、C 组技能与自定义排名开局</span>
     </div>
     <div class="modal-body">
-      <p><b>v18 系列是一次较大的结构与功能更新。</b>当前版本已支持国服 A / B 组切换，并保留夺冠概率、晋级概率、淘汰概率、平均名次、手动逐步模拟等核心功能。</p>
-      <p><b>主要新增内容：</b>加入国服 B 组 6 位团子、头像和技能；删除亚服相关选项，当前版本先专注国服小组赛；底层整理为统一团子库，方便后续加入 C 组、淘汰赛和总决赛。</p>
-      <p><b>规则与技能更新：</b>绯雪固定为第 3 回合开始遇到布大王才触发；爱弥斯「电子幽灵登场」固定中点为第 18 格，经过后进入待触发状态，仅在她自己的主动行动结束后检查传送。</p>
-      <div class="warn"><b>手动模式优化：</b>本轮骰子会按行动顺序显示；指定点数会同步更新骰子显示、底层点数表和技能判断。千咲最低点、守岸人 2/3 限制、莫宁 3/2/1 循环、爱弥斯最终传送规则等问题已做修复。</div>
-      <p><b>赛事展示更新：</b>v18.1.4 已加入国服 A 组正式结果、晋级名单与谢幕赛名单，并新增更接近游戏风格的晋级图模块。B 组与 C 组结果将在直播更新后继续补充。</p>
+      <p><b>v18 系列是一次较大的结构与功能更新。</b>当前版本已支持国服 A / B / C 组切换，并保留夺冠概率、晋级概率、淘汰概率、平均名次、手动逐步模拟等核心功能。</p>
+      <p><b>主要新增内容：</b>加入国服 C 组 6 位团子、头像和技能；底层固定开局已抽成通用排名函数，方便后续淘汰赛和总决赛复用。</p>
+      <p><b>规则与技能更新：</b>C 组技能按回合开始、主动行动开始、回合结束、堆叠变化和中点传送分开结算；爱弥斯最终规则保持不变。</p>
+      <div class="warn"><b>手动模式优化：</b>本轮骰子会按行动顺序显示；指定点数会同步更新骰子显示、底层点数表和技能判断。C 组支持随机开局与自定义排名下半场开局。</div>
+      <p><b>赛事展示更新：</b>已加入国服 A / B 组正式结果、晋级名单与谢幕赛名单；C 组暂为待比赛状态。</p>
       <div class="warn">模拟结果仍然仅供参考。部分技能细节来自直播观察和规则文本推断，实际结算以游戏内表现为准。</div>
     </div>
     <div class="modal-actions">
@@ -213,11 +218,11 @@
 </div>
 
 <div class="wrap">
-  <h1>小团快跑模拟器 v18.1.4</h1>
-  <p>普通团子骰子 1–3，布大王骰子 1–6。随机开局从第 2 格起跑，第 1 格为终点；布大王开局就在终点，第 3 回合开始移动。v18 系列已加入 B 组模拟、统一团子库，并优化手动模式骰子显示与 B 组技能判定。</p>
+  <h1>小团快跑模拟器 v18.2.0</h1>
+  <p>普通团子骰子 1–3，布大王骰子 1–6。随机开局从第 2 格起跑，第 1 格为终点；布大王开局就在终点，第 3 回合开始移动。v18 系列已加入 A / B / C 组模拟、统一团子库，并优化手动模式骰子显示与技能判定。</p>
 
   <details class="update-card">
-    <summary><div class="update-title">📢 更新公告 v18.1.4</div></summary>
+    <summary><div class="update-title">📢 更新公告 v18.2.0</div></summary>
     <ul class="update-list">
       <li><b>v18 大版本：</b>新增国服 B 组上半场模拟模式，录入 B 组 6 位团子的头像、名字和技能：千咲、莫宁、琳奈、爱弥斯、守岸人、珂莱塔。</li>
       <li><b>v18 大版本：</b>B 组技能逻辑加入模拟：千咲「视阈解明」、莫宁「精密演算」、琳奈「炫彩时刻」、爱弥斯「电子幽灵登场」、守岸人「收束的未来」、珂莱塔「利润加倍」。</li>
@@ -237,6 +242,7 @@
       <li><b>v18.1.3：</b>更新打开网页时的大版本提示弹窗，集中说明 v18 系列主要变化。</li>
       <li><b>v18.1.3：</b>优化手动指定特殊骰子角色的反馈：莫宁不可覆盖时会提示固定循环，守岸人输入非法点数时会提示并修正到 2 / 3。</li>
       <li><b>v18.1.4：</b>更新国服 A 组正式下半场结果、晋级名单与谢幕赛名单；新增更接近游戏样式的赛事晋级图展示区，B/C 组暂保留待更新占位。</li>
+      <li><b>v18.2.0：</b>新增国服 C 组 6 位团子、C 组技能逻辑和自定义排名下半场开局；赛事图同步更新 B 组最终晋级与谢幕名单。</li>
     </ul>
   </details>
 
@@ -256,10 +262,11 @@
       <label>模拟组别</label>
       <select id="simGroup" class="select-input" onchange="changeSimGroup()">
         <option value="A">国服 A 组</option>
-        <option value="B">国服 B 组（上半场）</option>
+        <option value="B">国服 B 组</option>
+        <option value="C">国服 C 组</option>
       </select>
       <div class="notice" style="margin:8px 0 10px">爱弥斯中点固定为第 18 格。经过第 18 格后进入待触发状态；只有爱弥斯自己的主动行动结束后才检查是否传送；前方无人则等待；成功传送一次后技能结束。</div>
-      <div class="notice" style="margin:8px 0 10px">B 组当前仅支持上半场随机开局；上半场结果出来后再加入 B 组下半场固定开局。</div>
+      <div class="notice" style="margin:8px 0 10px">C 组可使用随机开局，也可以在下方“自定义排名开局（测试功能）”中生成下半场固定开局。</div>
       <div class="dice-panel" id="dicePanel">
         <div class="dice-top">
           <div class="dice-left">
@@ -293,6 +300,19 @@
       </select>
       <button class="preset-btn" onclick="applySecondHalfPreset()">应用下半场开局（按国服排名）</button>
 
+      <div class="custom-ranking-box">
+        <div class="custom-ranking-title">自定义排名开局（测试功能）</div>
+        <label>自定义排名组别</label>
+        <select id="customRankingGroup" class="select-input" onchange="updateCustomRankingSelectors()">
+          <option value="A">国服 A 组</option>
+          <option value="B">国服 B 组</option>
+          <option value="C" selected>国服 C 组</option>
+        </select>
+        <div class="custom-ranking-grid" id="customRankingGrid"></div>
+        <button class="preset-btn" onclick="applyCustomRankingPreset()">应用自定义排名开局</button>
+        <div class="custom-ranking-note">站位：第 1 名在第 1 格；第 2 / 3 名在第 32 格，第 2 名在上；第 4 / 5 名在第 31 格，第 4 名在上；第 6 名在第 30 格。第一回合行动顺序随机。</div>
+      </div>
+
       <details class="batch-drawer">
         <summary>🎲 批量模拟控制台</summary>
         <div class="batch-body">
@@ -306,6 +326,7 @@
             <option value="cnA">国服 A 组上半场</option>
           </select>
           <div class="check"><input id="batchSecondHalf" type="checkbox" /> <span>批量模拟使用国服 A 组下半场固定开局</span></div>
+          <div class="check"><input id="batchCustomRanking" type="checkbox" /> <span>批量模拟使用自定义排名开局</span></div>
           <button id="runBtn" style="width:100%" onclick="runBatch()">批量模拟</button>
           <div class="notice">规则摘要：第 2 格为随机开局起点，第 1 格为终点；第 4、12、17、24 格推进；第 7、21 格空间裂隙；第 11、29 格阻遏。下半场固定开局中，非第 1 格出发的团子第一次经过终点不结算；绯雪固定为第 3 回合开始才会因布大王相遇触发。</div>
         </div>
@@ -321,7 +342,7 @@
 
   <section class="card" style="margin-top:16px">
     <div class="title">📊 赛事晋级图与当天排名</div>
-    <div class="notice" style="margin-bottom:12px">当前展示国服赛程。A 组已更新正式结果；B 组结果等待直播公布；C 组暂为待比赛占位。该模块先用于查看样式，后续可继续填充淘汰赛与总决赛名单。</div>
+    <div class="notice" style="margin-bottom:12px">当前展示国服赛程。A / B 组已更新正式结果；C 组暂为待比赛占位。该模块先用于查看样式，后续可继续填充淘汰赛与总决赛名单。</div>
     <div id="tournamentBracket" class="tourney"></div>
   </section>
 
@@ -364,8 +385,38 @@ function selectedBatchRankingKey(){ return document.getElementById("batchRanking
 function selectedDisplayRankingKey(){ return DEFAULT_RANKING_KEY; }
 function selectedCamellyaEarlyRule(){ return false; }
 function selectedSimGroup(){ return document.getElementById("simGroup")?.value || CURRENT_GROUP || "A"; }
+function selectedCustomRankingGroup(){ return document.getElementById("customRankingGroup")?.value || "C"; }
 function nameOfAny(id){ return DANGO_LIBRARY[id]?.name || id; }
 function imgOfAny(id){ return DANGO_LIBRARY[id]?.img || `assets/${id}.png`; }
+function customRankingLabel(group, ids){ return `${GROUPS[group]?.label || group}自定义上半场排名（${ids.map(nameOfAny).join("、")}）`; }
+function updateCustomRankingSelectors(){
+  const group=selectedCustomRankingGroup();
+  const ids=GROUPS[group]?.participants || [];
+  const grid=document.getElementById("customRankingGrid");
+  if(!grid) return;
+  grid.innerHTML=Array.from({length:6},(_,i)=>{
+    const opts=[`<option value="">请选择第 ${i+1} 名</option>`].concat(ids.map(id=>`<option value="${id}">${nameOfAny(id)}团子</option>`)).join("");
+    return `<div><label>第 ${i+1} 名</label><select id="customRank${i+1}" class="select-input custom-rank-select">${opts}</select></div>`;
+  }).join("");
+}
+function getCustomRankingIds(showAlert=true){
+  const group=selectedCustomRankingGroup();
+  const ids=Array.from({length:6},(_,i)=>document.getElementById(`customRank${i+1}`)?.value || "");
+  const missing=ids.some(id=>!id);
+  const unique=new Set(ids.filter(Boolean));
+  const validSet=new Set(GROUPS[group]?.participants || []);
+  const hasInvalid=ids.some(id=>id && !validSet.has(id));
+  let message="";
+  if(missing) message="自定义排名需要填满第 1 名到第 6 名。";
+  else if(unique.size!==ids.length) message="自定义排名中不能选择重复团子。";
+  else if(hasInvalid) message="自定义排名包含不属于当前组别的团子。";
+  if(message){
+    if(showAlert) alert(message);
+    showManualHint(message,"warn");
+    return null;
+  }
+  return ids;
+}
 function bracketAvatar(id){ return imgOfAny(id); }
 function avatarSlot(id, cls="", label=""){
   if(id && DANGO_LIBRARY[id]) return `<div class="slot-wrap"><img class="game-avatar ${cls}" src="${imgOfAny(id)}" alt="${nameOfAny(id)}" title="${nameOfAny(id)}"><div class="slot-label">${label || nameOfAny(id)}</div></div>`;
@@ -379,7 +430,7 @@ function groupCard(group, ids, opts={}){
   return `<div class="game-card">
     <div class="game-head ${headClass}"><span>${group}组（6进4）${status}</span><span>${headerRight}</span></div>
     <div class="game-body">
-      <div class="avatar-track">${ids.map((id,i)=>avatarSlot(id, isDone ? (i<4?"advanced":"farewell") : (DANGO_LIBRARY[id]?"":"pending"), DANGO_LIBRARY[id] ? nameOfAny(id) : "待定")).join("")}</div>
+      <div class="avatar-track">${ids.map((id,i)=>avatarSlot(id, isDone ? (i<4?"advanced":"farewell") : "pending", DANGO_LIBRARY[id] ? nameOfAny(id) : "待定")).join("")}</div>
       <div class="game-footer"><span>${opts.left || "小组赛"}</span><span>${opts.right || (isDone?"正式结果":"等待直播")}</span></div>
     </div>
   </div>`;
@@ -398,6 +449,8 @@ function renderTournamentBracket(){
   const box=document.getElementById("tournamentBracket");
   if(!box) return;
   const cPlaceholders = BRACKET_GROUPS.C;
+  const advancedList = [...A_ADVANCED, ...B_ADVANCED];
+  const farewellList = [...A_FAREWELL, ...B_FAREWELL];
   box.innerHTML = `
     <div class="stage-tabs">
       <div class="stage-tab active"><b>小组赛</b><span>05.09-05.15</span></div>
@@ -407,19 +460,23 @@ function renderTournamentBracket(){
     <div class="tourney-grid">
       <div class="tourney-left">
         ${groupCard("A", A_FINAL_RANKING, {done:true, date:"05.09 / 05.10", left:"正式排名", right:"前4晋级，后2谢幕"})}
-        ${groupCard("B", BRACKET_GROUPS.B, {date:"05.11 / 05.12", left:"B组上半场进行中", right:"等待直播结果"})}
-        ${groupCard("C", cPlaceholders, {date:"05.13 / 05.14", left:"C组待比赛", right:"暂未解锁"})}
+        ${groupCard("B", B_FINAL_RANKING, {done:true, date:"05.11 / 05.12", left:"正式排名", right:"前4晋级，后2谢幕"})}
+        ${groupCard("C", cPlaceholders, {date:"05.13 / 05.14", left:"C组待比赛", right:"待结果"})}
       </div>
       <div class="tourney-right">
-        ${stageCard("晋级淘汰赛", A_ADVANCED, {headClass:"red", avatarClass:"advanced", total:12, date:"A组已确认", left:"A组前4已进入", right:"B/C组待更新"})}
-        ${stageCard("谢幕赛", A_FAREWELL, {headClass:"purple", avatarClass:"farewell", total:6, date:"A组已确认", left:"A组后2已进入", right:"B/C组待更新"})}
+        ${stageCard("晋级淘汰赛", advancedList, {headClass:"red", avatarClass:"advanced", total:12, date:"A/B组已确认", left:"A/B组前4已进入", right:"C组待更新"})}
+        ${stageCard("谢幕赛", farewellList, {headClass:"purple", avatarClass:"farewell", total:6, date:"A/B组已确认", left:"A/B组后2已进入", right:"C组待更新"})}
         ${stageCard("总决赛", [], {headClass:"dark", total:6, date:"05.23", left:"淘汰赛后更新", right:"待定"})}
       </div>
     </div>
-    <div class="flow-note">说明：A 组最终排名为 达妮娅、西格莉卡、绯雪、卡提希娅、菲比、陆·赫斯。根据规则，下半场前 4 晋级淘汰赛，后 2 进入谢幕赛；B 组与 C 组结果将在直播确认后继续更新。</div>
+    <div class="flow-note">说明：A 组与 B 组正式排名已确认。根据规则，小组赛下半场前 4 晋级淘汰赛，后 2 进入谢幕赛；C 组仍为待比赛 / 待结果状态。</div>
     <div class="today-panel" style="margin-top:14px;color:#0f172a">
       <b>国服 A 组正式结果</b>
       <div class="result-list">${A_FINAL_RANKING.map((id,i)=>`<div class="rank-row"><span class="rank-num">${i+1}</span><img src="${imgOfAny(id)}" alt="${nameOfAny(id)}"><span class="rank-name">${nameOfAny(id)}团子</span><span class="rank-tag ${i<4?"adv":"fare"}">${i<4?"晋级":"谢幕赛"}</span></div>`).join("")}</div>
+    </div>
+    <div class="today-panel" style="margin-top:14px;color:#0f172a">
+      <b>国服 B 组正式结果</b>
+      <div class="result-list">${B_FINAL_RANKING.map((id,i)=>`<div class="rank-row"><span class="rank-num">${i+1}</span><img src="${imgOfAny(id)}" alt="${nameOfAny(id)}"><span class="rank-name">${nameOfAny(id)}团子</span><span class="rank-tag ${i<4?"adv":"fare"}">${i<4?"晋级":"谢幕赛"}</span></div>`).join("")}</div>
     </div>
   `;
 }
@@ -434,10 +491,22 @@ let state = makeInitial(20260509, false, "A");
 
 function applySecondHalfPreset(){
   stopAutoRun();
-  if(selectedSimGroup()!=="A"){ alert("B 组目前还没有上半场结果，暂时只能使用随机开局模拟。"); return; }
+  if(selectedSimGroup()!=="A"){ alert("当前国服排名固定开局只内置 A 组；B / C 组请使用自定义排名开局。"); return; }
   const seed = getSeedForRun();
   const src = getRankingSource(selectedManualRankingKey());
   state = makeSecondHalfState(seed, src.ranking, src.label, selectedCamellyaEarlyRule());
+  state.log.unshift(`本局使用种子：${seed}`);
+  render();
+}
+function applyCustomRankingPreset(){
+  stopAutoRun();
+  const group=selectedCustomRankingGroup();
+  const rankingIds=getCustomRankingIds(true);
+  if(!rankingIds) return;
+  const seed=getSeedForRun();
+  const simGroup=document.getElementById("simGroup");
+  if(simGroup) simGroup.value=group;
+  state=makeRankingBasedState(group, rankingIds, seed, customRankingLabel(group, rankingIds), selectedCamellyaEarlyRule());
   state.log.unshift(`本局使用种子：${seed}`);
   render();
 }
@@ -642,17 +711,30 @@ function runBatch(){
   const n=Math.max(1,Math.min(200000,Number(document.getElementById("count").value||1000)));
   const autoSeed=document.getElementById("autoSeed").checked;
   const seed=getSeedForRun();
-  const group=selectedSimGroup();
+  let group=selectedSimGroup();
   let startMode=document.getElementById("batchSecondHalf")?.checked ? "secondHalf" : "random";
-  if(group!=="A" && startMode==="secondHalf"){ alert("B 组目前还没有上半场结果，批量模拟将使用随机开局。"); startMode="random"; }
+  let rankingIds=null;
+  let sourceLabel="";
+  const useCustomRanking=document.getElementById("batchCustomRanking")?.checked;
+  if(useCustomRanking){
+    rankingIds=getCustomRankingIds(true);
+    if(!rankingIds) return;
+    group=selectedCustomRankingGroup();
+    startMode="customRanking";
+    sourceLabel=customRankingLabel(group, rankingIds);
+  } else if(group!=="A" && startMode==="secondHalf"){
+    alert("当前内置国服排名固定开局只支持 A 组；B / C 组请使用自定义排名开局。");
+    startMode="random";
+  }
   const rankingKey=selectedBatchRankingKey();
   const camellyaEarlyTrigger=selectedCamellyaEarlyRule();
   const src=getRankingSource(rankingKey);
+  const modeLabel=startMode==="customRanking"?sourceLabel:(startMode==="secondHalf"?`${src.label} 固定开局`:"随机开局");
   const box=document.getElementById("resultBox");
   const btn=document.getElementById("runBtn");
   btn.disabled=true; btn.textContent="模拟中...";
   box.className=""; box.style.cssText="";
-  box.innerHTML=`<div class="progress-wrap"><div class="progress-label"><span>正在模拟（${startMode==="secondHalf"?"下半场固定开局":"随机开局"}）</span><b id="progressText">0 / ${n}</b></div><div class="progress-bar"><div id="progressFill"></div></div></div><div class="small">正在初始化随机剧本... 当前种子已更新到输入框；开局模式：${startMode==="secondHalf"?`${src.label} 固定开局`:"随机开局"}</div>`;
+  box.innerHTML=`<div class="progress-wrap"><div class="progress-label"><span>正在模拟（${startMode==="random"?"随机开局":"下半场固定开局"}）</span><b id="progressText">0 / ${n}</b></div><div class="progress-bar"><div id="progressFill"></div></div></div><div class="small">正在初始化随机剧本... 当前种子已更新到输入框；开局模式：${modeLabel}</div>`;
   runBatchAsync(n,seed,autoSeed,(r)=>{
     const pct=(r.done/r.total*100).toFixed(1);
     const pt=document.getElementById("progressText");
@@ -660,12 +742,12 @@ function runBatch(){
     if(pt) pt.textContent=`${r.done} / ${r.total}（${pct}%）`;
     if(pf) pf.style.width=`${pct}%`;
     // 每一批都展示临时排名，让用户知道程序还在工作。
-    box.innerHTML=`<div class="progress-wrap"><div class="progress-label"><span>正在模拟（${startMode==="secondHalf"?"下半场固定开局":"随机开局"}）</span><b id="progressText">${r.done} / ${r.total}（${pct}%）</b></div><div class="progress-bar"><div id="progressFill" style="width:${pct}%"></div></div></div>`+formatResults(r.rows,r.seed,r.done);
+    box.innerHTML=`<div class="progress-wrap"><div class="progress-label"><span>正在模拟（${startMode==="random"?"随机开局":"下半场固定开局"}）</span><b id="progressText">${r.done} / ${r.total}（${pct}%）</b></div><div class="progress-bar"><div id="progressFill" style="width:${pct}%"></div></div></div>`+formatResults(r.rows,r.seed,r.done);
   },(r)=>{
     btn.disabled=false; btn.textContent="批量模拟";
     box.innerHTML=formatResults(r.rows,r.seed,r.done);
     alert(`模拟完成：最高晋级概率为 ${r.rows[0].name}，${(r.rows[0].advanceRate*100).toFixed(2)}%`);
-  },startMode,rankingKey,camellyaEarlyTrigger,group);
+  },startMode,rankingKey,camellyaEarlyTrigger,group,4,rankingIds,sourceLabel);
 }
 
 function closeVersionModal(){
@@ -673,6 +755,7 @@ function closeVersionModal(){
   if(modal) modal.style.display="none";
 }
 
+updateCustomRankingSelectors();
 render();
 renderBracket();
 </script>
