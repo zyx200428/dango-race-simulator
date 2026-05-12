@@ -522,7 +522,8 @@ function makeRankingBasedState(groupKey, rankingIds, seed, sourceLabel="自定�
   Object.values(status).forEach(st=>{ st.tile=2; st.canFinish=false; });
   Object.entries(stacks).forEach(([tile, ids])=>ids.filter(isDango).forEach(id=>{ status[id].tile = Number(tile); }));
   status[r1].canFinish = true;
-  const firstOrder = shuffle(DANGOS.map(d=>d.id), rng);
+  let firstOrder = shuffle(DANGOS.map(d=>d.id), rng);
+  if(firstOrder.every((id,i)=>id===ranking[i])) firstOrder = [...firstOrder.slice(1), firstOrder[0]];
   const s={
     seed, rng, group:CURRENT_GROUP, startMode:"secondHalf", round:1, turnIndex:0, order:firstOrder, baseRolls:{}, stacks, status,
     king:{tile:1,active:true}, winner:null, lastAction:null, camellyaEarlyTrigger,
