@@ -166,8 +166,15 @@ function recordYunoMidpointPass(s){
 function triggerYunoTeleport(s,reason=""){
   if(!isSkillGroupActive(s,"C") || !s.status.yuno || s.status.yuno.yunoUsed || s.winner) return false;
   if(!s.status.yuno.hasPassedMidpoint) return false;
-  const before=stackSnapshot(s);
   const ranking=rank(s);
+  const yunoRank=ranking.indexOf("yuno");
+  const prefix=reason ? `${reason}，` : "";
+  if(yunoRank<=0 || yunoRank>=ranking.length-1){
+    const rankText=yunoRank>=0 ? `当前第${yunoRank+1}名` : "当前排名未知";
+    s.log.push(`${prefix}尤诺${rankText}，排名前后不同时存在其他普通团子，中点重排继续等待。`);
+    return false;
+  }
+  const before=stackSnapshot(s);
   const target=s.status.yuno.tile;
   for(const tile of Object.keys(s.stacks)){
     const onlyKing=stackAt(s,Number(tile)).filter(id=>id==="king");
@@ -177,7 +184,6 @@ function triggerYunoTeleport(s,reason=""){
   setStack(s,target,hasKing?[...ranking,"king"]:[...ranking]);
   ranking.forEach(id=>{ s.status[id].tile=target; });
   s.status.yuno.yunoUsed=true;
-  const prefix=reason ? `${reason}，` : "";
   s.log.push(`${prefix}尤诺触发中点重排：所有普通团子按触发前排名堆叠到第${target}格。`);
   if(s.lastAction){ s.lastAction.notes.push(`尤诺中点重排→第${target}格`); s.lastAction.path.push(target); }
   checkJinhsiAboveAppearedFromSnapshot(s,before,"尤诺中点重排后");
@@ -186,6 +192,17 @@ function triggerYunoTeleport(s,reason=""){
 function checkYunoTeleportAfterOwnAction(s,actorId){
   if(actorId!=="yuno") return;
   triggerYunoTeleport(s,"尤诺主动行动结束");
+}
+function checkCartethyiaComebackAfterOwnAction(s,actorId){
+  if(actorId!=="cartethyia" || !isSkillGroupActive(s,"A") || !s.status.cartethyia || s.winner) return;
+  const info=s.status.cartethyia;
+  if(info.comebackUsed) return;
+  const r=rank(s);
+  if(r[r.length-1]===actorId){
+    info.comeback=true;
+    info.comebackUsed=true;
+    s.log.push("卡提希娅处于最后一名，激活追赶技能。");
+  }
 }
 function mergeMovingGroupOnTile(s, group, tile, mode="normal"){
   const existing=stackAt(s,tile).filter(id=>!group.includes(id));
@@ -414,7 +431,8 @@ function stepDango(s,id,forcedRoll=null){
   s.log.push(`${nameOf(id)} 掷出 ${baseRoll}，实际移动 ${steps}${notes.length?`（${notes.join("；")}）`:""}，携带：${group.map(shortOf).join("、")}`);
   moveForward(s,group,steps,id,nameOf(id));
 
-  if(isSkillGroupActive(s,"A") && id==="cartethyia"&&!info.comebackUsed&&!s.winner){ const r=rank(s); if(r[r.length-1]===id){ info.comeback=true; info.comebackUsed=true; s.log.push("卡提希娅处于最后一名，激活追赶技能。"); } }
+  // 主动行动结束类技能统一放在移动、落点堆叠和地图机关结算完成后检查。
+  checkCartethyiaComebackAfterOwnAction(s,id);
   if(isSkillGroupActive(s,"B")){ recordAemisMidpointPass(s); checkAemisTeleportAfterOwnAction(s,id); }
   if(isSkillGroupActive(s,"C")){ recordYunoMidpointPass(s); checkYunoTeleportAfterOwnAction(s,id); }
 }
