@@ -15,6 +15,7 @@ const imgOf = id => DANGOS.find(d=>d.id===id)?.img || "";
 function rngFromSeed(seed){ let s = Number(seed) >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
 function randInt(rng,a,b){ return Math.floor(rng() * (b-a+1)) + a; }
 function shuffle(list,rng){ const a=[...list]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function shuffledOrderAvoiding(list,rng,avoidOrder=[]){ const a=shuffle(list,rng); if(avoidOrder.length===a.length && a.every((id,i)=>id===avoidOrder[i]) && a.length>1) a.push(a.shift()); return a; }
 function initialStatus(){ return Object.fromEntries(DANGOS.map(d=>[d.id,{tile:2,lastRoll:null,metKing:false,comeback:false,comebackUsed:false,canFinish:true,rollCount:0,ghostUsed:false,hasPassedMidpoint:false}])); }
 function prepareRoundRolls(s){
   s.baseRolls = {};
@@ -36,12 +37,13 @@ function setIdTile(s,id,tile){ if(id==="king") s.king.tile=tile; else if(s.statu
 function removeIdFromAllStacks(s,id){ for(const k of Object.keys(s.stacks)){ const next=s.stacks[k].filter(x=>x!==id); setStack(s,Number(k),next); } }
 function placeKingAt(s,tile){ removeIdFromAllStacks(s,"king"); const st=stackAt(s,tile).filter(id=>id!=="king"); st.push("king"); setStack(s,tile,st); s.king.tile=tile; s.king.active=true; }
 function ensureKingActive(s){ if(!s.king.active){ placeKingAt(s,1); s.log.push("布大王从第1格登场。 "); } else { const st=stackAt(s,s.king.tile); if(!st.includes("king")) placeKingAt(s,s.king.tile); } }
+function isRankingBasedStart(s){ return !!(s && (s.isRankingBasedStart || s.startMode==="secondHalf" || s.startMode==="rankingBased")); }
 function raceScore(s,id){
   const st=s.status[id];
   // 普通开局：第2格是起点，第1格是终点；分数用格子顺序近似排名。
   // 下半场固定开局：国服 A 组排名第1名从第1格出发，应被视为领先；
   // 其他团子第一次经过第1格只解锁终点结算资格，之后才进入下一圈。
-  if(s.startMode==="secondHalf" && st.canFinish) return 32 + (st.tile - 1);
+  if(isRankingBasedStart(s) && st.canFinish) return 32 + (st.tile - 1);
   return st.tile - 1;
 }
 function rank(s){ return DANGOS.map(d=>({id:d.id,tile:s.status[d.id].tile,score:raceScore(s,d.id)})).sort((a,b)=>{ if(b.score!==a.score) return b.score-a.score; return stackAt(s,a.tile).indexOf(a.id)-stackAt(s,b.tile).indexOf(b.id); }).map(x=>x.id); }
@@ -263,7 +265,19 @@ function stepDango(s,id,forcedRoll=null){
 }
 function buildRoundOrder(s){ const base=DANGOS.map(d=>d.id); return s.round>=3 ? shuffle([...base,"king"], s.rng) : shuffle(base, s.rng); }
 function advanceTurn(inputState,forcedRoll=null){ const s=cloneState(inputState); if(s.winner) return s; if(s.round>=3) ensureKingActive(s); const current=s.order[s.turnIndex]; if(current==="king"){ kingMove(s,forcedRoll); recordAemisMidpointPass(s); } else stepDango(s,current,forcedRoll); if(s.winner){ const last=rank(s).at(-1); s.log.push(`比赛结束：最后一名为 ${nameOf(last)}，布大王位于第${s.king.tile}格。`); return s; } s.turnIndex++; if(s.turnIndex>=s.order.length){ checkKingReturnAtRoundEnd(s); s.round++; s.turnIndex=0; s.order=buildRoundOrder(s); prepareRoundRolls(s); s.log.push(`--- 第 ${s.round} 回合，行动顺序：${s.order.map(x=>x==="king"?"布":shortOf(x)).join(" → ")} ---`); } return s; }
-function simulateOne(seed,maxTurns=1000,startMode="random", rankingKey=DEFAULT_RANKING_KEY, camellyaEarlyTrigger=true, group=CURRENT_GROUP){ setCurrentGroup(group); const src=getRankingSource(rankingKey); let s=(group==="A" && startMode==="secondHalf")?makeSecondHalfState(seed, src.ranking, src.label, camellyaEarlyTrigger):makeInitial(seed, camellyaEarlyTrigger, group); let safe=0; while(!s.winner&&safe++<maxTurns) s=advanceTurn(s); if(!s.winner) s.winner=rank(s)[0]; return s; }
+function simulateOne(seed,maxTurns=1000,startMode="random", rankingKey=DEFAULT_RANKING_KEY, camellyaEarlyTrigger=true, group=CURRENT_GROUP, customRankingIds=null, customRankingLabel="自定义排名开局"){
+  setCurrentGroup(group);
+  const src=getRankingSource(rankingKey);
+  let s;
+  if(startMode==="rankingBased"){
+    s=makeRankingBasedState(group, customRankingIds, seed, {sourceLabel:customRankingLabel, camellyaEarlyTrigger, startMode:"rankingBased"});
+  } else if(group==="A" && startMode==="secondHalf"){
+    s=makeSecondHalfState(seed, src.ranking, src.label, camellyaEarlyTrigger);
+  } else {
+    s=makeInitial(seed, camellyaEarlyTrigger, group);
+  }
+  let safe=0; while(!s.winner&&safe++<maxTurns) s=advanceTurn(s); if(!s.winner) s.winner=rank(s)[0]; return s;
+}
 function finalRanking(s){
   const base=rank(s).filter(id=>id!==s.winner);
   return s.winner ? [s.winner, ...base] : base;
@@ -282,7 +296,7 @@ function rowsFromStats(stats, done){
     return b.winRate-a.winRate;
   });
 }
-function runBatchAsync(n,seed,autoSeed,onProgress,onDone,startMode="random",rankingKey=DEFAULT_RANKING_KEY,camellyaEarlyTrigger=true,group=CURRENT_GROUP){ setCurrentGroup(group);
+function runBatchAsync(n,seed,autoSeed,onProgress,onDone,startMode="random",rankingKey=DEFAULT_RANKING_KEY,camellyaEarlyTrigger=true,group=CURRENT_GROUP,customRankingIds=null,customRankingLabel="自定义排名开局"){ setCurrentGroup(group);
   const stats=Object.fromEntries(DANGOS.map(d=>[d.id,{wins:0,top4:0,rankSum:0}]));
   const realSeed=Number(seed||1);
   let done=0;
@@ -290,7 +304,7 @@ function runBatchAsync(n,seed,autoSeed,onProgress,onDone,startMode="random",rank
   function chunk(){
     const end=Math.min(n,done+batchSize);
     for(let i=done;i<end;i++){
-      const s=simulateOne((realSeed+i*9973)>>>0,1000,startMode,rankingKey,camellyaEarlyTrigger,group);
+      const s=simulateOne((realSeed+i*9973)>>>0,1000,startMode,rankingKey,camellyaEarlyTrigger,group,customRankingIds,customRankingLabel);
       const fr=finalRanking(s);
       fr.forEach((id,idx)=>{
         if(!stats[id]) return;
@@ -310,8 +324,15 @@ function runBatchAsync(n,seed,autoSeed,onProgress,onDone,startMode="random",rank
 
 function getRankingSource(key){ return RANKING_SOURCES[key] || RANKING_SOURCES[DEFAULT_RANKING_KEY]; }
 
-function makeSecondHalfState(seed, ranking = getRankingSource(DEFAULT_RANKING_KEY).ranking, sourceLabel = getRankingSource(DEFAULT_RANKING_KEY).label, camellyaEarlyTrigger=false){
-  setCurrentGroup("A");
+function makeRankingBasedState(groupKey, rankingIds, seed, options={}){
+  setCurrentGroup(groupKey);
+  const ranking = Array.isArray(rankingIds) ? [...rankingIds] : [];
+  const participantIds = DANGOS.map(d=>d.id);
+  const unique = new Set(ranking);
+  const invalid = ranking.filter(id=>!participantIds.includes(id));
+  if(ranking.length !== participantIds.length || unique.size !== ranking.length || invalid.length){
+    throw new Error(`Invalid ranking for ${GROUPS[CURRENT_GROUP].label}`);
+  }
   const rng = rngFromSeed(seed);
   const [r1,r2,r3,r4,r5,r6] = ranking;
   const stacks = {
@@ -320,15 +341,22 @@ function makeSecondHalfState(seed, ranking = getRankingSource(DEFAULT_RANKING_KE
     31: [r4, r5],
     30: [r6],
   };
-  const status = Object.fromEntries(DANGOS.map(d=>[d.id,{tile:1,lastRoll:null,metKing:false,comeback:false,comebackUsed:false,canFinish:false,rollCount:0,ghostUsed:false}]));
+  const status = initialStatus();
+  DANGOS.forEach(d=>{
+    status[d.id].tile = 1;
+    status[d.id].canFinish = false;
+  });
   Object.entries(stacks).forEach(([tile, ids])=>ids.filter(isDango).forEach(id=>{ status[id].tile = Number(tile); }));
   status[r1].canFinish = true;
-  const firstOrder = shuffle(DANGOS.map(d=>d.id), rng);
+  const firstOrder = shuffledOrderAvoiding(participantIds, rng, ranking);
+  const sourceLabel = options.sourceLabel || `${GROUPS[CURRENT_GROUP].label}排名开局`;
+  const camellyaEarlyTrigger = options.camellyaEarlyTrigger ?? false;
+  const startMode = options.startMode || "rankingBased";
   const s={
-    seed, rng, group:"A", startMode:"secondHalf", round:1, turnIndex:0, order:firstOrder, baseRolls:{}, stacks, status,
-    king:{tile:1,active:true}, winner:null, lastAction:null, camellyaEarlyTrigger,
+    seed, rng, group:CURRENT_GROUP, startMode, isRankingBasedStart:true, round:1, turnIndex:0, order:firstOrder, baseRolls:{}, stacks, status,
+    king:{tile:1,active:true}, winner:null, lastAction:null, camellyaEarlyTrigger, rankingSource:{label:sourceLabel, ranking:[...ranking]},
     log:[
-      `已应用${sourceLabel}的下半场固定开局。`,
+      `已应用${sourceLabel}。`,
       `布大王开局位于第1格终点，第3回合开始移动；绯雪相遇规则：${camellyaEarlyTrigger?"第3回合后才可触发":"第3回合后才可触发"}。`,
       `上半场排名仅决定站位和同格堆叠顺序；第一回合行动顺序随机：${firstOrder.map(shortOf).join(" → ")}`,
       `站位：第1格 ${nameOf(r1)}；第32格 ${nameOf(r2)}在上、${nameOf(r3)}在下；第31格 ${nameOf(r4)}在上、${nameOf(r5)}在下；第30格 ${nameOf(r6)}。`,
@@ -337,4 +365,8 @@ function makeSecondHalfState(seed, ranking = getRankingSource(DEFAULT_RANKING_KE
   };
   prepareRoundRolls(s);
   return s;
+}
+
+function makeSecondHalfState(seed, ranking = getRankingSource(DEFAULT_RANKING_KEY).ranking, sourceLabel = getRankingSource(DEFAULT_RANKING_KEY).label, camellyaEarlyTrigger=false){
+  return makeRankingBasedState("A", ranking, seed, {sourceLabel:`${sourceLabel}的下半场固定开局`, camellyaEarlyTrigger, startMode:"secondHalf"});
 }

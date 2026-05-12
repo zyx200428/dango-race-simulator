@@ -16,7 +16,7 @@
     .card { background:var(--card); border:1px solid var(--border); border-radius:18px; box-shadow:0 1px 3px rgba(15,23,42,.06); padding:16px; }
     .title { font-weight:700; display:flex; gap:8px; align-items:center; margin-bottom:12px; }
     label { display:block; font-size:14px; color:#334155; margin:12px 0 6px; }
-    input[type="number"], input[type="text"] { width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; background:white; }
+    input[type="number"], input[type="text"], select { width:100%; padding:10px 12px; border:1px solid #cbd5e1; border-radius:10px; font-size:14px; background:white; }
     button { border:0; border-radius:12px; padding:10px 12px; font-weight:700; cursor:pointer; background:#0f172a; color:white; }
     button.secondary { background:white; color:#0f172a; border:1px solid #cbd5e1; }
     button.ghost { background:transparent; color:#0f172a; }
@@ -171,6 +171,11 @@
     .modal-actions button { min-width:140px; }
     .manual-hint { display:none; margin:8px 0 10px; padding:10px 12px; border-radius:14px; background:#ecfeff; border:1px solid #67e8f9; color:#155e75; font-size:13px; line-height:1.55; }
     .manual-hint.warn { background:#fff7ed; border-color:#fdba74; color:#9a3412; }
+    .custom-ranking-body { padding:0 14px 14px; border-top:1px solid #e2e8f0; }
+    .ranking-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+    .ranking-status { display:none; margin-top:10px; padding:9px 10px; border-radius:12px; font-size:13px; line-height:1.5; background:#ecfeff; border:1px solid #67e8f9; color:#155e75; }
+    .ranking-status.warn { display:block; background:#fff7ed; border-color:#fdba74; color:#9a3412; }
+    .ranking-status.ok { display:block; background:#ecfdf5; border-color:#86efac; color:#166534; }
 
 
     .round-dice-panel{margin-top:14px;padding:12px;border:1px solid var(--border);border-radius:16px;background:#f8fafc;}
@@ -294,6 +299,21 @@
       <button class="preset-btn" onclick="applySecondHalfPreset()">应用下半场开局（按国服排名）</button>
 
       <details class="batch-drawer">
+        <summary>自定义排名开局（测试功能）</summary>
+        <div class="custom-ranking-body">
+          <label>组别选择</label>
+          <select id="customRankingGroup" class="select-input" onchange="renderCustomRankingSelectors()">
+            <option value="A">A 组</option>
+            <option value="B">B 组</option>
+          </select>
+          <div id="customRankingRows" class="ranking-grid"></div>
+          <button class="preset-btn" onclick="applyCustomRankingStart()">应用自定义排名开局</button>
+          <div id="customRankingStatus" class="ranking-status"></div>
+          <div class="notice">根据用户输入的上半场排名生成下半场固定开局。排名只决定站位和同格堆叠顺序，第一回合行动顺序仍然随机。</div>
+        </div>
+      </details>
+
+      <details class="batch-drawer">
         <summary>🎲 批量模拟控制台</summary>
         <div class="batch-body">
           <label>模拟次数</label>
@@ -306,6 +326,7 @@
             <option value="cnA">国服 A 组上半场</option>
           </select>
           <div class="check"><input id="batchSecondHalf" type="checkbox" /> <span>批量模拟使用国服 A 组下半场固定开局</span></div>
+          <div class="check"><input id="batchCustomRanking" type="checkbox" /> <span>批量模拟使用自定义排名开局</span></div>
           <button id="runBtn" style="width:100%" onclick="runBatch()">批量模拟</button>
           <div class="notice">规则摘要：第 2 格为随机开局起点，第 1 格为终点；第 4、12、17、24 格推进；第 7、21 格空间裂隙；第 11、29 格阻遏。下半场固定开局中，非第 1 格出发的团子第一次经过终点不结算；绯雪固定为第 3 回合开始才会因布大王相遇触发。</div>
         </div>
@@ -364,6 +385,60 @@ function selectedBatchRankingKey(){ return document.getElementById("batchRanking
 function selectedDisplayRankingKey(){ return DEFAULT_RANKING_KEY; }
 function selectedCamellyaEarlyRule(){ return false; }
 function selectedSimGroup(){ return document.getElementById("simGroup")?.value || CURRENT_GROUP || "A"; }
+function customRankingGroup(){ return document.getElementById("customRankingGroup")?.value || selectedSimGroup() || "A"; }
+function customRankingParticipants(group=customRankingGroup()){ return (GROUPS[group]?.participants || GROUPS.A.participants).map(id=>DANGO_LIBRARY[id]); }
+function customRankingSelectIds(){ return Array.from({length:6},(_,i)=>`customRank${i+1}`); }
+function readCustomRankingIds(){ return customRankingSelectIds().map(id=>document.getElementById(id)?.value || ""); }
+function validateCustomRanking(group, rankingIds){
+  const ids=customRankingParticipants(group).map(d=>d.id);
+  const filled=rankingIds.filter(Boolean);
+  if(filled.length !== ids.length) return {ok:false, message:"请先填满第 1 名到第 6 名。"};
+  const unique=new Set(filled);
+  if(unique.size !== filled.length) return {ok:false, message:"同一个团子不能重复出现在多个排名里。"};
+  const invalid=filled.filter(id=>!ids.includes(id));
+  if(invalid.length) return {ok:false, message:"当前排名中包含不属于所选组别的团子。"};
+  return {ok:true, message:"自定义排名有效，可以应用。"};
+}
+function setCustomRankingStatus(message, type="warn"){
+  const el=document.getElementById("customRankingStatus");
+  if(!el) return;
+  el.textContent=message;
+  el.className=`ranking-status ${type}`;
+}
+function updateCustomRankingLocks(){
+  const selected=readCustomRankingIds();
+  const validation=validateCustomRanking(customRankingGroup(), selected);
+  for(const selectId of customRankingSelectIds()){
+    const select=document.getElementById(selectId);
+    if(!select) continue;
+    Array.from(select.options).forEach(option=>{
+      option.disabled = !!option.value && option.value !== select.value && selected.includes(option.value);
+    });
+  }
+  const status=document.getElementById("customRankingStatus");
+  if(status && status.textContent) setCustomRankingStatus(validation.message, validation.ok?"ok":"warn");
+  return validation;
+}
+function renderCustomRankingSelectors(){
+  const group=customRankingGroup();
+  const rows=document.getElementById("customRankingRows");
+  if(!rows) return;
+  const participants=customRankingParticipants(group);
+  rows.innerHTML=Array.from({length:6},(_,i)=>{
+    const opts=[`<option value="">请选择</option>`].concat(participants.map(d=>`<option value="${d.id}">${d.name}</option>`)).join("");
+    return `<div><label>第 ${i+1} 名</label><select id="customRank${i+1}" class="select-input" onchange="updateCustomRankingLocks()">${opts}</select></div>`;
+  }).join("");
+  setCustomRankingStatus("请填满第 1 名到第 6 名，且不要重复选择。","warn");
+  updateCustomRankingLocks();
+}
+function getValidCustomRankingOrShow(){
+  const group=customRankingGroup();
+  const ranking=readCustomRankingIds();
+  const validation=validateCustomRanking(group, ranking);
+  setCustomRankingStatus(validation.message, validation.ok?"ok":"warn");
+  if(!validation.ok) return null;
+  return {group, ranking};
+}
 function nameOfAny(id){ return DANGO_LIBRARY[id]?.name || id; }
 function imgOfAny(id){ return DANGO_LIBRARY[id]?.img || `assets/${id}.png`; }
 function bracketAvatar(id){ return imgOfAny(id); }
@@ -439,6 +514,18 @@ function applySecondHalfPreset(){
   const src = getRankingSource(selectedManualRankingKey());
   state = makeSecondHalfState(seed, src.ranking, src.label, selectedCamellyaEarlyRule());
   state.log.unshift(`本局使用种子：${seed}`);
+  render();
+}
+function applyCustomRankingStart(){
+  stopAutoRun(true);
+  const custom=getValidCustomRankingOrShow();
+  if(!custom) return;
+  const seed=getSeedForRun();
+  const simGroup=document.getElementById("simGroup");
+  if(simGroup) simGroup.value=custom.group;
+  state=makeRankingBasedState(custom.group, custom.ranking, seed, {sourceLabel:`${GROUPS[custom.group].label}自定义排名开局`, camellyaEarlyTrigger:selectedCamellyaEarlyRule(), startMode:"rankingBased"});
+  state.log.unshift(`本局使用种子：${seed}`);
+  setCustomRankingStatus(`已应用${GROUPS[custom.group].label}自定义排名开局。第一回合行动顺序：${state.order.map(shortOf).join(" → ")}`,"ok");
   render();
 }
 function changeSimGroup(){ stopAutoRun(true); const seed=getSeedForRun(); state=makeInitial(seed, selectedCamellyaEarlyRule(), selectedSimGroup()); state.log.unshift(`已切换到${GROUPS[CURRENT_GROUP].label}，本局使用种子：${seed}`); render(); }
@@ -642,17 +729,29 @@ function runBatch(){
   const n=Math.max(1,Math.min(200000,Number(document.getElementById("count").value||1000)));
   const autoSeed=document.getElementById("autoSeed").checked;
   const seed=getSeedForRun();
-  const group=selectedSimGroup();
-  let startMode=document.getElementById("batchSecondHalf")?.checked ? "secondHalf" : "random";
+  let group=selectedSimGroup();
+  const useCustomRanking=document.getElementById("batchCustomRanking")?.checked;
+  let customRankingIds=null;
+  let customRankingLabel="自定义排名开局";
+  let startMode=useCustomRanking ? "rankingBased" : (document.getElementById("batchSecondHalf")?.checked ? "secondHalf" : "random");
+  if(useCustomRanking){
+    const custom=getValidCustomRankingOrShow();
+    if(!custom) return;
+    group=custom.group;
+    customRankingIds=custom.ranking;
+    customRankingLabel=`${GROUPS[group].label}自定义排名开局`;
+  }
   if(group!=="A" && startMode==="secondHalf"){ alert("B 组目前还没有上半场结果，批量模拟将使用随机开局。"); startMode="random"; }
   const rankingKey=selectedBatchRankingKey();
   const camellyaEarlyTrigger=selectedCamellyaEarlyRule();
   const src=getRankingSource(rankingKey);
+  const startModeText=startMode==="rankingBased"?"自定义排名开局":startMode==="secondHalf"?"下半场固定开局":"随机开局";
+  const startModeDetail=startMode==="rankingBased"?customRankingLabel:(startMode==="secondHalf"?`${src.label} 固定开局`:"随机开局");
   const box=document.getElementById("resultBox");
   const btn=document.getElementById("runBtn");
   btn.disabled=true; btn.textContent="模拟中...";
   box.className=""; box.style.cssText="";
-  box.innerHTML=`<div class="progress-wrap"><div class="progress-label"><span>正在模拟（${startMode==="secondHalf"?"下半场固定开局":"随机开局"}）</span><b id="progressText">0 / ${n}</b></div><div class="progress-bar"><div id="progressFill"></div></div></div><div class="small">正在初始化随机剧本... 当前种子已更新到输入框；开局模式：${startMode==="secondHalf"?`${src.label} 固定开局`:"随机开局"}</div>`;
+  box.innerHTML=`<div class="progress-wrap"><div class="progress-label"><span>正在模拟（${startModeText}）</span><b id="progressText">0 / ${n}</b></div><div class="progress-bar"><div id="progressFill"></div></div></div><div class="small">正在初始化随机剧本... 当前种子已更新到输入框；开局模式：${startModeDetail}</div>`;
   runBatchAsync(n,seed,autoSeed,(r)=>{
     const pct=(r.done/r.total*100).toFixed(1);
     const pt=document.getElementById("progressText");
@@ -660,12 +759,12 @@ function runBatch(){
     if(pt) pt.textContent=`${r.done} / ${r.total}（${pct}%）`;
     if(pf) pf.style.width=`${pct}%`;
     // 每一批都展示临时排名，让用户知道程序还在工作。
-    box.innerHTML=`<div class="progress-wrap"><div class="progress-label"><span>正在模拟（${startMode==="secondHalf"?"下半场固定开局":"随机开局"}）</span><b id="progressText">${r.done} / ${r.total}（${pct}%）</b></div><div class="progress-bar"><div id="progressFill" style="width:${pct}%"></div></div></div>`+formatResults(r.rows,r.seed,r.done);
+    box.innerHTML=`<div class="progress-wrap"><div class="progress-label"><span>正在模拟（${startModeText}）</span><b id="progressText">${r.done} / ${r.total}（${pct}%）</b></div><div class="progress-bar"><div id="progressFill" style="width:${pct}%"></div></div></div>`+formatResults(r.rows,r.seed,r.done);
   },(r)=>{
     btn.disabled=false; btn.textContent="批量模拟";
     box.innerHTML=formatResults(r.rows,r.seed,r.done);
     alert(`模拟完成：最高晋级概率为 ${r.rows[0].name}，${(r.rows[0].advanceRate*100).toFixed(2)}%`);
-  },startMode,rankingKey,camellyaEarlyTrigger,group);
+  },startMode,rankingKey,camellyaEarlyTrigger,group,customRankingIds,customRankingLabel);
 }
 
 function closeVersionModal(){
@@ -673,6 +772,7 @@ function closeVersionModal(){
   if(modal) modal.style.display="none";
 }
 
+renderCustomRankingSelectors();
 render();
 renderBracket();
 </script>
