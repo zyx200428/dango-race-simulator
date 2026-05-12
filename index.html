@@ -303,24 +303,62 @@
   </div>
 
   <section class="card" style="margin-top:16px">
+    <div class="title">C 组下半场模拟</div>
+    <div class="stage-grid">
+      <div>
+        <div class="small">输入 C 组上半场第 1-6 名，仅用于生成本次下半场固定开局，不会写入 C 组最终排名。</div>
+        <div class="selector-grid" id="cSecondHalfRankingGrid"></div>
+        <div class="stage-actions">
+          <button id="cSecondHalfRunBtn" onclick="runCSecondHalfBatch()">模拟 C 组下半场</button>
+          <button class="secondary" onclick="applyCSecondHalfToManual()">应用 C 组下半场开局到手动模拟</button>
+        </div>
+        <div id="cSecondHalfStatus" class="warn-line">请填满 C 组上半场第 1-6 名。</div>
+      </div>
+      <div>
+        <div class="compact-controls">
+          <div>
+            <label>C 组下半场模拟次数</label>
+            <input id="cSecondHalfCount" type="number" value="1000" min="1" max="200000" />
+          </div>
+          <div>
+            <label>C 组下半场种子</label>
+            <input id="cSecondHalfSeed" type="number" value="20260521" />
+          </div>
+        </div>
+        <div class="check"><input id="cSecondHalfAutoSeed" type="checkbox" checked /> <span>运行或应用手动开局时自动生成新种子</span></div>
+        <div id="cSecondHalfResultBox" class="stage-result-box"><div class="stage-message">尚未模拟。</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:16px">
     <div class="title">C 组最终排名确认</div>
     <div class="stage-grid">
       <div>
         <div class="small">A 组固定晋级：达妮娅、西格莉卡、绯雪、卡提希娅</div>
         <div class="roster-grid" id="aAdvancedList"></div>
+        <div class="small" style="margin-top:12px">A 组谢幕赛：菲比、陆·赫斯</div>
+        <div class="roster-grid" id="aFarewellList"></div>
         <div class="small" style="margin-top:12px">B 组固定晋级：守岸人、千咲、珂莱塔、爱弥斯</div>
         <div class="roster-grid" id="bAdvancedList"></div>
+        <div class="small" style="margin-top:12px">B 组谢幕赛：琳奈、莫宁</div>
+        <div class="roster-grid" id="bFarewellList"></div>
       </div>
       <div>
-        <div class="small">选择 C 组第 1 名到第 6 名。前 4 名进入淘汰赛，后 2 名进入谢幕赛。</div>
+        <div class="small">选择 C 组第 1 名到第 6 名。前 4 名进入淘汰赛，后 2 名进入小组赛谢幕赛。</div>
         <div class="selector-grid" id="cRankingGrid"></div>
         <div class="stage-actions">
-          <button onclick="confirmCRanking()">确认 C 组晋级名单</button>
+          <button onclick="confirmCRanking()">确认 C 组最终排名</button>
           <button class="secondary" onclick="resetCRanking()">重置 C 组排名</button>
         </div>
         <div id="cRankingStatus" class="warn-line">请填满 C 组 1-6 名。</div>
       </div>
     </div>
+  </section>
+
+  <section class="card" style="margin-top:16px">
+    <div class="title">小组赛谢幕赛</div>
+    <div id="groupSummaryBox"></div>
   </section>
 
   <section class="card" style="margin-top:16px">
@@ -343,6 +381,10 @@
   <section id="stageKnockout" class="stage-panel">
     <div class="stage-copy">淘汰赛：12 位晋级团子分为两组，每组前 3 进入胜者组，后 3 进入败者组。</div>
     <section class="card" style="margin-top:16px">
+      <div class="title">赛事晋级图</div>
+      <div id="knockoutBracket" class="tourney"></div>
+    </section>
+    <section class="card" style="margin-top:16px">
       <div class="title">淘汰赛候选池</div>
       <div id="knockoutPoolBox"></div>
     </section>
@@ -351,10 +393,18 @@
       <div id="knockoutSetupBox"></div>
       <div id="knockoutGroupsBox"></div>
     </section>
+    <section class="card" style="margin-top:16px">
+      <div class="title">淘汰赛谢幕赛</div>
+      <div id="knockoutFarewellBox"></div>
+    </section>
   </section>
 
   <section id="stageFinal" class="stage-panel">
     <div class="stage-copy">决赛：由胜者组与最终赛晋级团子组成决赛名单，模拟最终冠军概率。</div>
+    <section class="card" style="margin-top:16px">
+      <div class="title">赛事晋级图</div>
+      <div id="finalBracket" class="tourney"></div>
+    </section>
     <section class="card" style="margin-top:16px">
       <div class="title">决赛名单</div>
       <div id="finalStageBox"></div>
@@ -412,7 +462,10 @@ const STAGE_PANEL_IDS = { group:"stageGroup", knockout:"stageKnockout", final:"s
 const STAGE_BUTTON_IDS = { group:"stageBtnGroup", knockout:"stageBtnKnockout", final:"stageBtnFinal", manual:"stageBtnManual" };
 let currentStage = "group";
 const stageState = {
+  cSecondHalfRankingIds: [],
+  cSecondHalfResults: null,
   cRankingIds: [],
+  groupFarewellResults: null,
   knockoutGroups: null,
   knockoutResults: [null, null],
   knockoutTop: [[], []],
@@ -429,6 +482,7 @@ const stageState = {
   finalQualifierResult: null,
   finalQualifierTop3: [],
   finalQualifierBottom3: [],
+  knockoutFarewellResults: null,
   finalIds: [],
   finalResults: null
 };
@@ -436,8 +490,10 @@ const stageState = {
 const STAGE_RESULT_LABELS = {
   knockout: { advanceLabel:"进入胜者组概率", bottomLabel:"进入败者组概率", advanceHint:"前 3 概率", bottomHint:"后 3 概率" },
   winner: { advanceLabel:"进入决赛概率", bottomLabel:"进入最终赛概率", advanceHint:"前 3 概率", bottomHint:"后 3 概率" },
-  loser: { advanceLabel:"进入最终赛概率", bottomLabel:"进入谢幕赛概率", advanceHint:"前 3 概率", bottomHint:"后 3 概率" },
-  finalQualifier: { advanceLabel:"进入决赛概率", bottomLabel:"进入谢幕赛概率", advanceHint:"前 3 概率", bottomHint:"后 3 概率" },
+  loser: { advanceLabel:"进入最终赛概率", bottomLabel:"进入淘汰赛谢幕赛概率", advanceHint:"前 3 概率", bottomHint:"后 3 概率" },
+  finalQualifier: { advanceLabel:"进入决赛概率", bottomLabel:"进入淘汰赛谢幕赛概率", advanceHint:"前 3 概率", bottomHint:"后 3 概率" },
+  cSecondHalf: { advanceLabel:"晋级概率", bottomLabel:"谢幕概率", advanceHint:"最终前 4", bottomHint:"最终第 5 / 第 6" },
+  farewell: { advanceLabel:"前三概率", bottomLabel:"后三概率", advanceHint:"最终前 3", bottomHint:"最终后 3" },
   final: { final:true }
 };
 
@@ -491,9 +547,7 @@ function getGroupFarewellIds(){
   const valid=validateRankingSelection(stageState.cRankingIds);
   return [...A_FAREWELL, ...B_FAREWELL, ...(valid.valid ? stageState.cRankingIds.slice(4) : [])];
 }
-function getFarewellIds(){
-  return [...getGroupFarewellIds(), ...stageState.loserBottom3, ...stageState.finalQualifierBottom3];
-}
+function getKnockoutFarewellIds(){ return [...stageState.loserBottom3, ...stageState.finalQualifierBottom3]; }
 function validateRankingSelection(rankingIds){
   const ids=[...(rankingIds || [])];
   const validSet=new Set(GROUPS.C.participants);
@@ -553,6 +607,15 @@ function makeManualMatchState(participantIds, seed, label="手动赛事模拟"){
   s.log.unshift(`本局使用种子：${seed}`);
   return s;
 }
+function makeRankingManualStateFromConfig(config, seed){
+  const s=makeRankingBasedState(config.group, config.rankingIds, seed, config.label, selectedCamellyaEarlyRule());
+  s.log.unshift(`本局使用种子：${seed}`);
+  return s;
+}
+function seedForGroupManualReset(config){
+  if(config?.seedSource==="cSecondHalf") return cSecondHalfRunSettings().seed;
+  return getSeedForRun();
+}
 function runStageBatch(participantIds, advanceCount, options={}){
   const ids=[...(participantIds || [])];
   const groupKey=registerStageGroup(ids, options.label || "阶段赛");
@@ -576,6 +639,7 @@ function resetAfterWinnerLoser(){
   stageState.finalQualifierResult=null;
   stageState.finalQualifierTop3=[];
   stageState.finalQualifierBottom3=[];
+  stageState.knockoutFarewellResults=null;
   stageState.finalIds=[];
   stageState.finalResults=null;
   clearManualEventState();
@@ -598,6 +662,7 @@ function resetAfterKnockoutGroups(){
   resetAfterKnockoutConfirm();
 }
 function resetAfterCRanking(){
+  stageState.groupFarewellResults=null;
   stageState.knockoutGroups=null;
   resetAfterKnockoutGroups();
 }
@@ -623,6 +688,114 @@ function renderFlowPanels(){
   renderKnockoutStage();
   renderFinalStage();
   renderManualStage();
+}
+function cSecondHalfRankingIdsFromSelects(){
+  return Array.from({length:6},(_,i)=>document.getElementById(`cHalfRank${i+1}`)?.value || "");
+}
+function cSecondHalfLabel(ids){ return `C 组上半场自定义排名（${ids.map(nameOfAny).join("、")}）`; }
+function buildCSecondHalfRankingSelectors(){
+  const grid=document.getElementById("cSecondHalfRankingGrid");
+  if(!grid) return;
+  const ids=GROUPS.C.participants;
+  grid.innerHTML=Array.from({length:6},(_,i)=>{
+    const value=stageState.cSecondHalfRankingIds[i] || "";
+    const opts=[`<option value="">第 ${i+1} 名</option>`].concat(ids.map(id=>`<option value="${id}" ${value===id?"selected":""}>${nameOfAny(id)}</option>`)).join("");
+    return `<div><label>第 ${i+1} 名</label><select id="cHalfRank${i+1}" class="select-input c-half-rank-select" onchange="syncCSecondHalfOptions()">${opts}</select></div>`;
+  }).join("");
+  syncCSecondHalfOptions(false);
+}
+function syncCSecondHalfOptions(showWarning=true){
+  const selects=Array.from(document.querySelectorAll(".c-half-rank-select"));
+  const previous=stageState.cSecondHalfRankingIds.join("|");
+  const seen=new Set();
+  let cleared=false;
+  for(const sel of selects){
+    if(sel.value && seen.has(sel.value)){ sel.value=""; cleared=true; }
+    if(sel.value) seen.add(sel.value);
+  }
+  const selected=new Set(selects.map(sel=>sel.value).filter(Boolean));
+  for(const sel of selects){
+    Array.from(sel.options).forEach(opt=>{
+      opt.disabled=!!opt.value && opt.value!==sel.value && selected.has(opt.value);
+    });
+  }
+  const ids=cSecondHalfRankingIdsFromSelects();
+  stageState.cSecondHalfRankingIds=ids;
+  if(showWarning && previous!==ids.join("|")){
+    stageState.cSecondHalfResults=null;
+    renderCSecondHalfResult();
+  }
+  const status=document.getElementById("cSecondHalfStatus");
+  const validation=validateRankingSelection(ids);
+  if(status){
+    status.textContent=cleared ? "同一团子只能选择一次，已清空重复选择。" : (validation.valid ? "C 组上半场排名输入有效，可模拟下半场。" : validation.message.replace("C 组排名","C 组上半场排名"));
+    status.className=validation.valid ? "confirm-line" : "warn-line";
+  }
+  if(cleared && showWarning) showManualHint("同一团子只能选择一次，已清空重复名次。","warn");
+}
+function getCSecondHalfRankingIds(showAlert=true){
+  const ids=cSecondHalfRankingIdsFromSelects();
+  const validation=validateRankingSelection(ids);
+  if(!validation.valid){
+    const message=validation.message.replace("C 组排名","C 组上半场排名");
+    if(showAlert) alert(message);
+    const status=document.getElementById("cSecondHalfStatus");
+    if(status){ status.textContent=message; status.className="warn-line"; }
+    return null;
+  }
+  stageState.cSecondHalfRankingIds=ids;
+  return ids;
+}
+function cSecondHalfRunSettings(){
+  const auto=document.getElementById("cSecondHalfAutoSeed")?.checked;
+  const seedInput=document.getElementById("cSecondHalfSeed");
+  const countInput=document.getElementById("cSecondHalfCount");
+  const seed=auto ? generateSeed() : Number(seedInput?.value || 20260521);
+  if(seedInput && auto) seedInput.value=String(seed);
+  return { n:Math.max(1,Math.min(200000,Number(countInput?.value || 1000))), seed };
+}
+function renderCSecondHalfResult(){
+  const box=document.getElementById("cSecondHalfResultBox");
+  if(!box) return;
+  box.innerHTML=stageState.cSecondHalfResults
+    ? formatStageResults(stageState.cSecondHalfResults.rows, stageState.cSecondHalfResults.seed, stageState.cSecondHalfResults.done, STAGE_RESULT_LABELS.cSecondHalf)
+    : `<div class="stage-message">尚未模拟。</div>`;
+}
+async function runCSecondHalfBatch(){
+  const rankingIds=getCSecondHalfRankingIds(true);
+  if(!rankingIds) return;
+  const settings=cSecondHalfRunSettings();
+  const label=cSecondHalfLabel(rankingIds);
+  const btn=document.getElementById("cSecondHalfRunBtn");
+  const box=document.getElementById("cSecondHalfResultBox");
+  if(btn){ btn.disabled=true; btn.textContent="模拟中..."; }
+  await new Promise(resolve=>{
+    runBatchAsync(settings.n,settings.seed,false,(r)=>{
+      const pct=(r.done/r.total*100).toFixed(1);
+      if(box) box.innerHTML=`<div class="progress-wrap"><div class="progress-label"><span>正在模拟 C 组下半场</span><b>${r.done} / ${r.total}（${pct}%）</b></div><div class="progress-bar"><div style="width:${pct}%"></div></div></div>`+formatStageResults(r.rows,r.seed,r.done,STAGE_RESULT_LABELS.cSecondHalf);
+    },(r)=>{
+      stageState.cSecondHalfResults=r;
+      if(box) box.innerHTML=formatStageResults(r.rows,r.seed,r.done,STAGE_RESULT_LABELS.cSecondHalf);
+      resolve(r);
+    },"customRanking",DEFAULT_RANKING_KEY,selectedCamellyaEarlyRule(),"C",4,rankingIds,label);
+  });
+  if(btn){ btn.disabled=false; btn.textContent="模拟 C 组下半场"; }
+}
+function applyCSecondHalfToManual(){
+  const rankingIds=getCSecondHalfRankingIds(true);
+  if(!rankingIds) return;
+  stopAutoRun(true);
+  setActiveManualContext("group", false);
+  const settings=cSecondHalfRunSettings();
+  const simGroup=document.getElementById("simGroup");
+  if(simGroup) simGroup.value="C";
+  const label=cSecondHalfLabel(rankingIds);
+  state=makeRankingBasedState("C", rankingIds, settings.seed, label, selectedCamellyaEarlyRule());
+  state.log.unshift(`本局使用种子：${settings.seed}`);
+  manualContexts.group.resetConfig={type:"ranking", group:"C", rankingIds:[...rankingIds], label, seedSource:"cSecondHalf"};
+  manualContexts.group.state=state;
+  render();
+  showManualHint("已应用 C 组下半场固定开局，第一回合行动顺序已随机生成。");
 }
 function cRankingIdsFromSelects(){
   return Array.from({length:6},(_,i)=>document.getElementById(`cRank${i+1}`)?.value || "");
@@ -680,11 +853,147 @@ function resetCRanking(){
 }
 function renderGroupStage(){
   const aBox=document.getElementById("aAdvancedList");
+  const aFarewellBox=document.getElementById("aFarewellList");
   const bBox=document.getElementById("bAdvancedList");
+  const bFarewellBox=document.getElementById("bFarewellList");
   if(aBox) aBox.innerHTML=renderRoster(A_ADVANCED, A_ADVANCED.map((_,i)=>`A组第 ${i+1}`));
+  if(aFarewellBox) aFarewellBox.innerHTML=renderRoster(A_FAREWELL, A_FAREWELL.map((_,i)=>`A组第 ${i+5}`));
   if(bBox) bBox.innerHTML=renderRoster(B_ADVANCED, B_ADVANCED.map((_,i)=>`B组第 ${i+1}`));
+  if(bFarewellBox) bFarewellBox.innerHTML=renderRoster(B_FAREWELL, B_FAREWELL.map((_,i)=>`B组第 ${i+5}`));
+  buildCSecondHalfRankingSelectors();
   buildCRankingSelectors();
+  renderCSecondHalfResult();
+  renderGroupSummary();
   renderTournamentBracket();
+}
+function renderSummaryRoster(title, ids, notes=[], emptyText="待确认"){
+  return `<div>
+    <div class="stage-subtitle">${title}</div>
+    ${ids.length ? `<div class="roster-grid">${renderRoster(ids, notes)}</div>` : `<div class="stage-message">${emptyText}</div>`}
+  </div>`;
+}
+function groupFarewellRunSettings(){
+  const auto=document.getElementById("groupFarewellAutoSeed")?.checked;
+  const seedInput=document.getElementById("groupFarewellSeed");
+  const countInput=document.getElementById("groupFarewellCount");
+  const seed=auto ? generateSeed() : Number(seedInput?.value || 20260522);
+  if(seedInput && auto) seedInput.value=String(seed);
+  return { n:Math.max(1,Math.min(200000,Number(countInput?.value || 1000))), seed };
+}
+function renderGroupSummary(){
+  const box=document.getElementById("groupSummaryBox");
+  if(!box) return;
+  const cValidation=validateRankingSelection(stageState.cRankingIds);
+  const cAdvanced=cValidation.valid ? stageState.cRankingIds.slice(0,4) : [];
+  const cFarewell=cValidation.valid ? stageState.cRankingIds.slice(4) : [];
+  const members=getGroupFarewellIds();
+  const countValue=document.getElementById("groupFarewellCount")?.value || 1000;
+  const seedValue=document.getElementById("groupFarewellSeed")?.value || 20260522;
+  const autoEl=document.getElementById("groupFarewellAutoSeed");
+  const autoChecked=autoEl ? (autoEl.checked ? "checked" : "") : "checked";
+  box.innerHTML=`
+    <div class="stage-grid">
+      <div>
+        ${renderSummaryRoster("A 组晋级名单", A_ADVANCED, A_ADVANCED.map((_,i)=>`A组第 ${i+1}`))}
+        ${renderSummaryRoster("B 组晋级名单", B_ADVANCED, B_ADVANCED.map((_,i)=>`B组第 ${i+1}`))}
+        ${renderSummaryRoster("C 组晋级名单", cAdvanced, cAdvanced.map((_,i)=>`C组第 ${i+1}`), "确认 C 组最终排名后生成。")}
+      </div>
+      <div>
+        ${renderSummaryRoster("A 组谢幕赛名单", A_FAREWELL, A_FAREWELL.map((_,i)=>`A组第 ${i+5}`))}
+        ${renderSummaryRoster("B 组谢幕赛名单", B_FAREWELL, B_FAREWELL.map((_,i)=>`B组第 ${i+5}`))}
+        ${renderSummaryRoster("C 组谢幕赛名单", cFarewell, cFarewell.map((_,i)=>`C组第 ${i+5}`), "确认 C 组最终排名后生成。")}
+      </div>
+    </div>
+    <div class="stage-subtitle">小组赛谢幕赛成员</div>
+    ${members.length===6 ? `<div class="roster-grid">${renderRoster(members)}</div>
+      <div class="compact-controls">
+        <div><label>小组赛谢幕赛模拟次数</label><input id="groupFarewellCount" type="number" value="${countValue}" min="1" max="200000" /></div>
+        <div><label>小组赛谢幕赛种子</label><input id="groupFarewellSeed" type="number" value="${seedValue}" /></div>
+      </div>
+      <div class="check"><input id="groupFarewellAutoSeed" type="checkbox" ${autoChecked} /> <span>运行时自动生成新种子</span></div>
+      <div class="stage-actions"><button id="groupFarewellRunBtn" onclick="runGroupFarewellBatch()">模拟小组赛谢幕赛</button></div>
+      <div id="groupFarewellResultBox" class="stage-result-box">${stageState.groupFarewellResults ? formatStageResults(stageState.groupFarewellResults.rows, stageState.groupFarewellResults.seed, stageState.groupFarewellResults.done, STAGE_RESULT_LABELS.farewell) : `<div class="stage-message">尚未模拟。</div>`}</div>`
+      : `<div class="stage-message">等待 C 组最终排名确认后，自动生成 A/B/C 后 2 共 6 人名单。</div>`}
+  `;
+}
+async function runGroupFarewellBatch(){
+  const ids=getGroupFarewellIds();
+  const validation=validateStageParticipants(ids,6);
+  if(!validation.valid){ alert("请先确认 C 组最终排名，生成小组赛谢幕赛 6 人名单。"); return; }
+  const btn=document.getElementById("groupFarewellRunBtn");
+  const box=document.getElementById("groupFarewellResultBox");
+  const settings=groupFarewellRunSettings();
+  if(btn){ btn.disabled=true; btn.textContent="模拟中..."; }
+  await runStageBatch(ids,3,{
+    ...settings,
+    label:"小组赛谢幕赛",
+    onProgress:(r)=>{
+      const pct=(r.done/r.total*100).toFixed(1);
+      if(box) box.innerHTML=`<div class="progress-wrap"><div class="progress-label"><span>正在模拟小组赛谢幕赛</span><b>${r.done} / ${r.total}（${pct}%）</b></div><div class="progress-bar"><div style="width:${pct}%"></div></div></div>`+formatStageResults(r.rows,r.seed,r.done,STAGE_RESULT_LABELS.farewell);
+    },
+    onDone:(r)=>{
+      stageState.groupFarewellResults=r;
+      if(box) box.innerHTML=formatStageResults(r.rows,r.seed,r.done,STAGE_RESULT_LABELS.farewell);
+    }
+  });
+  if(btn){ btn.disabled=false; btn.textContent="模拟小组赛谢幕赛"; }
+}
+function knockoutFarewellRunSettings(){
+  const auto=document.getElementById("knockoutFarewellAutoSeed")?.checked;
+  const seedInput=document.getElementById("knockoutFarewellSeed");
+  const countInput=document.getElementById("knockoutFarewellCount");
+  const seed=auto ? generateSeed() : Number(seedInput?.value || 20260525);
+  if(seedInput && auto) seedInput.value=String(seed);
+  return { n:Math.max(1,Math.min(200000,Number(countInput?.value || 1000))), seed };
+}
+function renderKnockoutFarewell(){
+  const box=document.getElementById("knockoutFarewellBox");
+  if(!box) return;
+  const loserBottom=stageState.loserBottom3 || [];
+  const finalBottom=stageState.finalQualifierBottom3 || [];
+  const members=getKnockoutFarewellIds();
+  const countValue=document.getElementById("knockoutFarewellCount")?.value || 1000;
+  const seedValue=document.getElementById("knockoutFarewellSeed")?.value || 20260525;
+  const autoEl=document.getElementById("knockoutFarewellAutoSeed");
+  const autoChecked=autoEl ? (autoEl.checked ? "checked" : "") : "checked";
+  box.innerHTML=`
+    <div class="stage-grid">
+      ${renderSummaryRoster("败者组后 3", loserBottom, loserBottom.map((_,i)=>`后 ${3-i}`), "确认败者组结果后生成。")}
+      ${renderSummaryRoster("最终赛后 3", finalBottom, finalBottom.map((_,i)=>`后 ${3-i}`), "确认最终赛结果后生成。")}
+    </div>
+    <div class="stage-subtitle">淘汰赛谢幕赛成员</div>
+    ${members.length===6 ? `<div class="roster-grid">${renderRoster(members)}</div>
+      <div class="compact-controls">
+        <div><label>淘汰赛谢幕赛模拟次数</label><input id="knockoutFarewellCount" type="number" value="${countValue}" min="1" max="200000" /></div>
+        <div><label>淘汰赛谢幕赛种子</label><input id="knockoutFarewellSeed" type="number" value="${seedValue}" /></div>
+      </div>
+      <div class="check"><input id="knockoutFarewellAutoSeed" type="checkbox" ${autoChecked} /> <span>运行时自动生成新种子</span></div>
+      <div class="stage-actions"><button id="knockoutFarewellRunBtn" onclick="runKnockoutFarewellBatch()">模拟淘汰赛谢幕赛</button></div>
+      <div id="knockoutFarewellResultBox" class="stage-result-box">${stageState.knockoutFarewellResults ? formatStageResults(stageState.knockoutFarewellResults.rows, stageState.knockoutFarewellResults.seed, stageState.knockoutFarewellResults.done, STAGE_RESULT_LABELS.farewell) : `<div class="stage-message">尚未模拟。</div>`}</div>`
+      : `<div class="stage-message">等待败者组后 3 和最终赛后 3 确认后，自动生成淘汰赛谢幕赛 6 人名单。</div>`}
+  `;
+}
+async function runKnockoutFarewellBatch(){
+  const ids=getKnockoutFarewellIds();
+  const validation=validateStageParticipants(ids,6);
+  if(!validation.valid){ alert("请先确认败者组和最终赛结果，生成淘汰赛谢幕赛 6 人名单。"); return; }
+  const btn=document.getElementById("knockoutFarewellRunBtn");
+  const box=document.getElementById("knockoutFarewellResultBox");
+  const settings=knockoutFarewellRunSettings();
+  if(btn){ btn.disabled=true; btn.textContent="模拟中..."; }
+  await runStageBatch(ids,3,{
+    ...settings,
+    label:"淘汰赛谢幕赛",
+    onProgress:(r)=>{
+      const pct=(r.done/r.total*100).toFixed(1);
+      if(box) box.innerHTML=`<div class="progress-wrap"><div class="progress-label"><span>正在模拟淘汰赛谢幕赛</span><b>${r.done} / ${r.total}（${pct}%）</b></div><div class="progress-bar"><div style="width:${pct}%"></div></div></div>`+formatStageResults(r.rows,r.seed,r.done,STAGE_RESULT_LABELS.farewell);
+    },
+    onDone:(r)=>{
+      stageState.knockoutFarewellResults=r;
+      if(box) box.innerHTML=formatStageResults(r.rows,r.seed,r.done,STAGE_RESULT_LABELS.farewell);
+    }
+  });
+  if(btn){ btn.disabled=false; btn.textContent="模拟淘汰赛谢幕赛"; }
 }
 function stageRunSettings(prefix, fallbackSeed=20260516){
   const auto=document.getElementById(`${prefix}AutoSeed`)?.checked;
@@ -742,15 +1051,15 @@ const RACE_STAGE_CONFIGS = {
     top:()=>stageState.loserTop3, bottom:()=>stageState.loserBottom3,
     setTopBottom:(top,bottom)=>{ stageState.loserTop3=top; stageState.loserBottom3=bottom; refreshFinalQualifierGroup(); },
     clear:()=>{ stageState.loserTop3=[]; stageState.loserBottom3=[]; refreshFinalQualifierGroup(); },
-    labels:STAGE_RESULT_LABELS.loser, topText:"最终赛", bottomText:"谢幕赛", defaultSeed:20260519
+    labels:STAGE_RESULT_LABELS.loser, topText:"最终赛", bottomText:"淘汰赛谢幕赛", defaultSeed:20260519
   },
   finalQualifier: {
     title:"最终赛", ids:()=>stageState.finalQualifierIds,
     result:()=>stageState.finalQualifierResult, setResult:r=>{ stageState.finalQualifierResult=r; },
     top:()=>stageState.finalQualifierTop3, bottom:()=>stageState.finalQualifierBottom3,
-    setTopBottom:(top,bottom)=>{ stageState.finalQualifierTop3=top; stageState.finalQualifierBottom3=bottom; stageState.finalIds=buildFinalGroup(stageState.winnerTop3, top); stageState.finalResults=null; clearManualEventState(); },
-    clear:()=>{ stageState.finalQualifierTop3=[]; stageState.finalQualifierBottom3=[]; stageState.finalIds=[]; stageState.finalResults=null; clearManualEventState(); },
-    labels:STAGE_RESULT_LABELS.finalQualifier, topText:"决赛", bottomText:"谢幕赛", defaultSeed:20260520
+    setTopBottom:(top,bottom)=>{ stageState.finalQualifierTop3=top; stageState.finalQualifierBottom3=bottom; stageState.knockoutFarewellResults=null; stageState.finalIds=buildFinalGroup(stageState.winnerTop3, top); stageState.finalResults=null; clearManualEventState(); },
+    clear:()=>{ stageState.finalQualifierTop3=[]; stageState.finalQualifierBottom3=[]; stageState.knockoutFarewellResults=null; stageState.finalIds=[]; stageState.finalResults=null; clearManualEventState(); },
+    labels:STAGE_RESULT_LABELS.finalQualifier, topText:"决赛", bottomText:"淘汰赛谢幕赛", defaultSeed:20260520
   }
 };
 function renderStageRaceCard(stageKey){
@@ -870,6 +1179,8 @@ function renderKnockoutStage(){
   const setupBox=document.getElementById("knockoutSetupBox");
   const groupsBox=document.getElementById("knockoutGroupsBox");
   if(!poolBox || !setupBox || !groupsBox) return;
+  renderKnockoutBracket();
+  renderKnockoutFarewell();
   if(pool.length!==12){
     poolBox.innerHTML=`<div class="stage-message">请先在小组赛板块确认 C 组晋级名单。</div>`;
     setupBox.innerHTML="";
@@ -958,17 +1269,25 @@ function renderKnockoutGroups(){
   if(finalQualifierReady) buildRaceStageSelectors(["finalQualifier"]);
 }
 function renderFinalStage(){
+  renderFinalBracket();
   const box=document.getElementById("finalStageBox");
   if(!box) return;
   const ids=stageState.finalIds;
+  const sourceHtml=`
+    <div class="stage-grid">
+      ${renderSummaryRoster("胜者组前 3", stageState.winnerTop3, stageState.winnerTop3.map((_,i)=>`胜者组第 ${i+1}`), "确认胜者组结果后生成。")}
+      ${renderSummaryRoster("最终赛前 3", stageState.finalQualifierTop3, stageState.finalQualifierTop3.map((_,i)=>`最终赛第 ${i+1}`), "确认最终赛结果后生成。")}
+    </div>`;
   if(ids.length!==6){
-    box.innerHTML=`<div class="stage-message">请先完成淘汰赛、胜者组、败者组和最终赛流程。</div>`;
+    box.innerHTML=`${sourceHtml}<div class="stage-message">请先完成淘汰赛、胜者组、败者组和最终赛流程。</div>`;
     return;
   }
   const countValue=document.getElementById("finalCount")?.value || 1000;
   const seedValue=document.getElementById("finalSeed")?.value || 20260523;
   const autoChecked=document.getElementById("finalAutoSeed")?.checked ? "checked" : "";
   box.innerHTML=`
+    ${sourceHtml}
+    <div class="stage-subtitle">决赛 6 人名单</div>
     <div class="roster-grid">${renderRoster(ids)}</div>
     <div class="stage-grid">
       <div>
@@ -1088,45 +1407,67 @@ function renderTournamentBracket(){
   const cValidation=validateRankingSelection(stageState.cRankingIds);
   const cRanking = cValidation.valid ? stageState.cRankingIds : BRACKET_GROUPS.C;
   const cAdvanced = cValidation.valid ? stageState.cRankingIds.slice(0,4) : [];
+  const cFarewell = cValidation.valid ? stageState.cRankingIds.slice(4) : [];
   const advancedList = [...A_ADVANCED, ...B_ADVANCED, ...cAdvanced];
-  const farewellList = getFarewellIds();
-  const finalList = stageState.finalIds || [];
+  const groupFarewellList = getGroupFarewellIds();
   box.innerHTML = `
-    <div class="stage-tabs">
-      <div class="stage-tab active"><b>小组赛</b><span>A / B 已固定，C 组待确认</span></div>
-      <div class="stage-tab"><b>淘汰赛</b><span>12 人分两组，6 进 3</span></div>
-      <div class="stage-tab"><b>决赛</b><span>6 人争冠</span></div>
-      <div class="stage-tab"><b>手动模拟</b><span>${finalList.length===6?"已解锁":"待决赛名单"}</span></div>
-    </div>
     <div class="tourney-grid">
       <div class="tourney-left">
-        ${groupCard("A", A_FINAL_RANKING, {done:true, date:"05.09 / 05.10", left:"正式排名", right:"前4晋级，后2谢幕"})}
-        ${groupCard("B", B_FINAL_RANKING, {done:true, date:"05.11 / 05.12", left:"正式排名", right:"前4晋级，后2谢幕"})}
-        ${groupCard("C", cRanking, {done:cValidation.valid, date:cValidation.valid?"已确认":"待确认", left:cValidation.valid?"用户确认排名":"C组排名选择", right:cValidation.valid?"前4晋级，后2谢幕":"待确认"})}
+        ${groupCard("A", A_FINAL_RANKING, {done:true, date:"正式结果", left:"前 4 进入淘汰赛", right:"后 2 进入小组赛谢幕赛"})}
+        ${groupCard("B", B_FINAL_RANKING, {done:true, date:"正式结果", left:"前 4 进入淘汰赛", right:"后 2 进入小组赛谢幕赛"})}
+        ${groupCard("C", cRanking, {done:cValidation.valid, date:cValidation.valid?"已确认":"待确认", left:cValidation.valid?"前 4 进入淘汰赛":"C组最终排名待确认", right:cValidation.valid?"后 2 进入小组赛谢幕赛":"不锁定官方结果"})}
       </div>
       <div class="tourney-right">
-        ${stageCard("晋级淘汰赛", advancedList, {headClass:"red", avatarClass:"advanced", total:12, date:cValidation.valid?"候选池完整":"等待C组", left:`已确认 ${advancedList.length}/12`, right:cValidation.valid?"可分组":"C组待确认"})}
-        ${stageCard("淘汰赛第 1 组", stageState.knockoutGroups?.[0] || [], {total:6, date:stageState.knockoutGroups?"已分组":"待分组", left:`${stageState.knockoutTop[0].length}/3 进胜者组`, right:stageState.knockoutBottom[0].length===3?"结果已确认":"待确认"})}
-        ${stageCard("淘汰赛第 2 组", stageState.knockoutGroups?.[1] || [], {total:6, date:stageState.knockoutGroups?"已分组":"待分组", left:`${stageState.knockoutTop[1].length}/3 进胜者组`, right:stageState.knockoutBottom[1].length===3?"结果已确认":"待确认"})}
-        ${stageCard("胜者组", stageState.winnerGroupIds, {headClass:"red", avatarClass:"advanced", total:6, date:stageState.winnerGroupIds.length===6?"已生成":"待淘汰赛", left:`${stageState.winnerTop3.length}/3 进决赛`, right:stageState.winnerBottom3.length===3?"后3进最终赛":"待确认"})}
-        ${stageCard("败者组", stageState.loserGroupIds, {headClass:"purple", total:6, date:stageState.loserGroupIds.length===6?"已生成":"待淘汰赛", left:`${stageState.loserTop3.length}/3 进最终赛`, right:stageState.loserBottom3.length===3?"后3谢幕":"待确认"})}
-        ${stageCard("最终赛", stageState.finalQualifierIds, {headClass:"dark", total:6, date:stageState.finalQualifierIds.length===6?"已生成":"待胜败者组", left:`${stageState.finalQualifierTop3.length}/3 进决赛`, right:stageState.finalQualifierBottom3.length===3?"后3谢幕":"待确认"})}
-        ${stageCard("决赛", finalList, {headClass:"dark", total:6, date:finalList.length===6?"名单已生成":"最终赛后更新", left:`已确认 ${finalList.length}/6`, right:finalList.length===6?"可模拟":"待定"})}
-        ${stageCard("谢幕赛", farewellList, {headClass:"purple", avatarClass:"farewell", total:Math.max(6,farewellList.length), date:cValidation.valid?"持续更新":"等待C组", left:`已确认 ${farewellList.length}`, right:cValidation.valid?"名单更新中":"C组待确认"})}
+        ${stageCard("A 组前 4", A_ADVANCED, {headClass:"red", avatarClass:"advanced", total:4, date:"进入淘汰赛", left:"固定晋级", right:""})}
+        ${stageCard("B 组前 4", B_ADVANCED, {headClass:"red", avatarClass:"advanced", total:4, date:"进入淘汰赛", left:"固定晋级", right:""})}
+        ${stageCard("C 组前 4", cAdvanced, {headClass:"red", avatarClass:"advanced", total:4, date:cValidation.valid?"进入淘汰赛":"待确认", left:`已确认 ${cAdvanced.length}/4`, right:""})}
+        ${stageCard("A 组后 2", A_FAREWELL, {headClass:"purple", avatarClass:"farewell", total:2, date:"进入小组赛谢幕赛", left:"固定名单", right:""})}
+        ${stageCard("B 组后 2", B_FAREWELL, {headClass:"purple", avatarClass:"farewell", total:2, date:"进入小组赛谢幕赛", left:"固定名单", right:""})}
+        ${stageCard("C 组后 2", cFarewell, {headClass:"purple", avatarClass:"farewell", total:2, date:cValidation.valid?"进入小组赛谢幕赛":"待确认", left:`已确认 ${cFarewell.length}/2`, right:""})}
+        ${stageCard("淘汰赛候选池", advancedList, {headClass:"red", avatarClass:"advanced", total:12, date:cValidation.valid?"完整":"等待C组", left:`${advancedList.length}/12`, right:cValidation.valid?"淘汰赛可解锁":"未确认 C 组最终排名"})}
+        ${stageCard("小组赛谢幕赛入口", groupFarewellList, {headClass:"purple", avatarClass:"farewell", total:6, date:groupFarewellList.length===6?"可模拟":"等待C组", left:`${groupFarewellList.length}/6`, right:"独立比赛"})}
       </div>
     </div>
-    <div class="today-panel" style="margin-top:14px;color:#0f172a">
-      <b>国服 A 组正式结果</b>
-      <div class="result-list">${A_FINAL_RANKING.map((id,i)=>`<div class="rank-row"><span class="rank-num">${i+1}</span><img src="${imgOfAny(id)}" alt="${nameOfAny(id)}"><span class="rank-name">${nameOfAny(id)}团子</span><span class="rank-tag ${i<4?"adv":"fare"}">${i<4?"晋级":"谢幕赛"}</span></div>`).join("")}</div>
+  `;
+}
+function renderKnockoutBracket(){
+  const box=document.getElementById("knockoutBracket");
+  if(!box) return;
+  const knockoutFarewellList=getKnockoutFarewellIds();
+  box.innerHTML=`
+    <div class="tourney-grid">
+      <div class="tourney-left">
+        ${stageCard("淘汰赛第 1 组", stageState.knockoutGroups?.[0] || [], {total:6, date:stageState.knockoutGroups?"已分组":"待分组", left:"前 3 进入胜者组", right:"后 3 进入败者组"})}
+        ${stageCard("淘汰赛第 2 组", stageState.knockoutGroups?.[1] || [], {total:6, date:stageState.knockoutGroups?"已分组":"待分组", left:"前 3 进入胜者组", right:"后 3 进入败者组"})}
+        ${stageCard("胜者组", stageState.winnerGroupIds, {headClass:"red", avatarClass:"advanced", total:6, date:stageState.winnerGroupIds.length===6?"已生成":"待淘汰赛", left:"前 3 进入决赛", right:"后 3 进入最终赛"})}
+      </div>
+      <div class="tourney-right">
+        ${stageCard("败者组", stageState.loserGroupIds, {headClass:"purple", total:6, date:stageState.loserGroupIds.length===6?"已生成":"待淘汰赛", left:"前 3 进入最终赛", right:"后 3 进入淘汰赛谢幕赛"})}
+        ${stageCard("最终赛", stageState.finalQualifierIds, {headClass:"dark", total:6, date:stageState.finalQualifierIds.length===6?"已生成":"待胜败者组", left:"前 3 进入决赛", right:"后 3 进入淘汰赛谢幕赛"})}
+        ${stageCard("淘汰赛谢幕赛入口", knockoutFarewellList, {headClass:"purple", avatarClass:"farewell", total:6, date:knockoutFarewellList.length===6?"可模拟":"待名单", left:`${knockoutFarewellList.length}/6`, right:"独立比赛"})}
+      </div>
     </div>
-    <div class="today-panel" style="margin-top:14px;color:#0f172a">
-      <b>国服 B 组正式结果</b>
-      <div class="result-list">${B_FINAL_RANKING.map((id,i)=>`<div class="rank-row"><span class="rank-num">${i+1}</span><img src="${imgOfAny(id)}" alt="${nameOfAny(id)}"><span class="rank-name">${nameOfAny(id)}团子</span><span class="rank-tag ${i<4?"adv":"fare"}">${i<4?"晋级":"谢幕赛"}</span></div>`).join("")}</div>
+  `;
+}
+function renderFinalBracket(){
+  const box=document.getElementById("finalBracket");
+  if(!box) return;
+  const finalList=stageState.finalIds || [];
+  const leader=stageState.finalResults?.rows?.[0];
+  box.innerHTML=`
+    <div class="tourney-grid">
+      <div class="tourney-left">
+        ${stageCard("胜者组前 3", stageState.winnerTop3, {headClass:"red", avatarClass:"advanced", total:3, date:stageState.winnerTop3.length===3?"进入决赛":"待确认", left:`${stageState.winnerTop3.length}/3`, right:""})}
+        ${stageCard("最终赛前 3", stageState.finalQualifierTop3, {headClass:"dark", avatarClass:"advanced", total:3, date:stageState.finalQualifierTop3.length===3?"进入决赛":"待确认", left:`${stageState.finalQualifierTop3.length}/3`, right:""})}
+      </div>
+      <div class="tourney-right">
+        ${stageCard("决赛 6 人名单", finalList, {headClass:"dark", avatarClass:"advanced", total:6, date:finalList.length===6?"可模拟":"待生成", left:`${finalList.length}/6`, right:"冠军模拟"})}
+        <div class="today-panel" style="color:#0f172a">
+          <b>冠军模拟结果</b>
+          ${leader ? `<div class="result-list"><div class="rank-row"><span class="rank-num">1</span><img src="${leader.img}" alt="${leader.name}"><span class="rank-name">${leader.name}团子</span><span class="rank-tag adv">第一概率 ${(leader.winRate*100).toFixed(2)}%</span></div></div>` : `<div class="small" style="margin-top:8px">尚未批量模拟决赛。</div>`}
+        </div>
+      </div>
     </div>
-    ${cValidation.valid ? `<div class="today-panel" style="margin-top:14px;color:#0f172a">
-      <b>国服 C 组确认结果</b>
-      <div class="result-list">${stageState.cRankingIds.map((id,i)=>`<div class="rank-row"><span class="rank-num">${i+1}</span><img src="${imgOfAny(id)}" alt="${nameOfAny(id)}"><span class="rank-name">${nameOfAny(id)}团子</span><span class="rank-tag ${i<4?"adv":"fare"}">${i<4?"晋级":"谢幕赛"}</span></div>`).join("")}</div>
-    </div>` : ""}
   `;
 }
 function renderBracket(){ renderTournamentBracket(); }
@@ -1149,7 +1490,7 @@ const MANUAL_DOM_IDS = {
   }
 };
 const manualContexts = {
-  group: { state:null },
+  group: { state:null, resetConfig:null },
   event: { state:null, matchKey:"", stateMatchKey:"" }
 };
 let activeManualContext = "group";
@@ -1310,6 +1651,7 @@ function applySecondHalfPreset(){
   const seed = getSeedForRun();
   const src = getRankingSource(selectedManualRankingKey());
   state = makeSecondHalfState(seed, src.ranking, src.label, selectedCamellyaEarlyRule());
+  manualContexts.group.resetConfig={type:"ranking", group:"A", rankingIds:[...src.ranking], label:src.label, seedSource:"manual"};
   manualContexts.group.state=state;
   state.log.unshift(`本局使用种子：${seed}`);
   render();
@@ -1323,7 +1665,9 @@ function applyCustomRankingPreset(){
   const seed=getSeedForRun();
   const simGroup=document.getElementById("simGroup");
   if(simGroup) simGroup.value=group;
-  state=makeRankingBasedState(group, rankingIds, seed, customRankingLabel(group, rankingIds), selectedCamellyaEarlyRule());
+  const label=customRankingLabel(group, rankingIds);
+  state=makeRankingBasedState(group, rankingIds, seed, label, selectedCamellyaEarlyRule());
+  manualContexts.group.resetConfig={type:"ranking", group, rankingIds:[...rankingIds], label, seedSource:"manual"};
   manualContexts.group.state=state;
   state.log.unshift(`本局使用种子：${seed}`);
   render();
@@ -1333,6 +1677,7 @@ function changeSimGroup(){
   setActiveManualContext("group", false);
   const seed=getSeedForRun();
   state=makeInitial(seed, selectedCamellyaEarlyRule(), selectedSimGroup());
+  manualContexts.group.resetConfig=null;
   manualContexts.group.state=state;
   state.log.unshift(`已切换到${GROUPS[CURRENT_GROUP].label}，本局使用种子：${seed}`);
   render();
@@ -1504,9 +1849,16 @@ function resetManual(){
   if(activeManualContext==="event"){
     ensureManualEventState(true);
   } else {
-    const seed=getSeedForRun();
-    state=makeInitial(seed, selectedCamellyaEarlyRule(), selectedSimGroup());
-    state.log.unshift(`本局使用种子：${seed}`);
+    const config=manualContexts.group.resetConfig;
+    const seed=seedForGroupManualReset(config);
+    if(config?.type==="ranking"){
+      const simGroup=document.getElementById("simGroup");
+      if(simGroup) simGroup.value=config.group;
+      state=makeRankingManualStateFromConfig(config, seed);
+    } else {
+      state=makeInitial(seed, selectedCamellyaEarlyRule(), selectedSimGroup());
+      state.log.unshift(`本局使用种子：${seed}`);
+    }
     manualContexts.group.state=state;
   }
   render();
