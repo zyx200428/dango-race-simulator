@@ -389,6 +389,26 @@ function selectedCustomRankingGroup(){ return document.getElementById("customRan
 function nameOfAny(id){ return DANGO_LIBRARY[id]?.name || id; }
 function imgOfAny(id){ return DANGO_LIBRARY[id]?.img || `assets/${id}.png`; }
 function customRankingLabel(group, ids){ return `${GROUPS[group]?.label || group}自定义上半场排名（${ids.map(nameOfAny).join("、")}）`; }
+function customRankingSelects(){ return Array.from(document.querySelectorAll(".custom-rank-select")); }
+function syncCustomRankingOptions(){
+  const selects=customRankingSelects();
+  const seen=new Set();
+  let clearedDuplicate=false;
+  for(const sel of selects){
+    if(sel.value && seen.has(sel.value)){
+      sel.value="";
+      clearedDuplicate=true;
+    }
+    if(sel.value) seen.add(sel.value);
+  }
+  const selected=new Set(selects.map(sel=>sel.value).filter(Boolean));
+  for(const sel of selects){
+    Array.from(sel.options).forEach(opt=>{
+      opt.disabled=!!opt.value && opt.value!==sel.value && selected.has(opt.value);
+    });
+  }
+  if(clearedDuplicate) showManualHint("同一团子只能选择一次，已清空重复名次。","warn");
+}
 function updateCustomRankingSelectors(){
   const group=selectedCustomRankingGroup();
   const ids=GROUPS[group]?.participants || [];
@@ -396,8 +416,9 @@ function updateCustomRankingSelectors(){
   if(!grid) return;
   grid.innerHTML=Array.from({length:6},(_,i)=>{
     const opts=[`<option value="">请选择第 ${i+1} 名</option>`].concat(ids.map(id=>`<option value="${id}">${nameOfAny(id)}团子</option>`)).join("");
-    return `<div><label>第 ${i+1} 名</label><select id="customRank${i+1}" class="select-input custom-rank-select">${opts}</select></div>`;
+    return `<div><label>第 ${i+1} 名</label><select id="customRank${i+1}" class="select-input custom-rank-select" onchange="syncCustomRankingOptions()">${opts}</select></div>`;
   }).join("");
+  syncCustomRankingOptions();
 }
 function getCustomRankingIds(showAlert=true){
   const group=selectedCustomRankingGroup();
