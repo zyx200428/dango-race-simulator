@@ -1,8 +1,16 @@
 // Core race simulator state and rules. Kept as global functions for index.html compatibility.
-function groupDangos(group){ return (GROUPS[group]?.participants || GROUPS.A.participants).map(id=>DANGO_LIBRARY[id]); }
+function groupDangos(group){ return (GROUPS[group]?.participants || GROUPS.A.participants).map(id=>DANGO_LIBRARY[id]).filter(Boolean); }
 let CURRENT_GROUP = "A";
 let DANGOS = groupDangos(CURRENT_GROUP);
 function setCurrentGroup(group){ CURRENT_GROUP = GROUPS[group] ? group : "A"; DANGOS = groupDangos(CURRENT_GROUP); }
+function registerStageGroup(participantIds, label="阶段赛"){
+  const clean=[...new Set(participantIds || [])].filter(id=>DANGO_LIBRARY[id]);
+  const key=`stage_${clean.join("_")}`;
+  GROUPS[key]={ label, participants:clean, stageGroup:true };
+  return key;
+}
+function isStageGroupKey(group){ return !!GROUPS[group]?.stageGroup; }
+function isSkillGroupActive(s, groupKey){ return s.group===groupKey || isStageGroupKey(s.group); }
 const SPECIAL = {1:"终点",2:"起点",4:"推进",7:"裂隙",11:"阻遏",12:"推进",17:"推进",21:"裂隙",24:"推进",29:"阻遏"};
 const AEMIS_MIDPOINT = 18;
 const YUNO_MIDPOINT = 18;
@@ -78,7 +86,7 @@ function moveDangoToTopNoStackCheck(s,id){
   s.status[id].tile=tile;
 }
 function checkJinhsiAboveAppearedFromSnapshot(s,before,reason=""){
-  if(s.group!=="C" || !s.status.jinhsi || s.winner) return false;
+  if(!isSkillGroupActive(s,"C") || !s.status.jinhsi || s.winner) return false;
   const beforeAbove=snapshotHasOrdinaryAbove(before,"jinhsi");
   const afterAbove=stateHasOrdinaryAbove(s,"jinhsi");
   if(beforeAbove || !afterAbove) return false;
@@ -95,7 +103,7 @@ function checkJinhsiAboveAppearedFromSnapshot(s,before,reason=""){
   return true;
 }
 function applyRoundStartSkills(s){
-  if(s.group!=="C") return;
+  if(!isSkillGroupActive(s,"C")) return;
   for(const st of Object.values(s.status)){
     st.skipActiveThisRound=false;
     st.activeMoveBonus=0;
@@ -113,7 +121,7 @@ function applyRoundStartSkills(s){
   }
 }
 function applyMoveStartSkills(s,id,steps,notes){
-  if(s.group!=="C") return steps;
+  if(!isSkillGroupActive(s,"C")) return steps;
   const info=s.status[id];
   if(info?.activeMoveBonus){
     steps+=info.activeMoveBonus;
@@ -126,7 +134,7 @@ function applyMoveStartSkills(s,id,steps,notes){
   return steps;
 }
 function applyRoundEndSkills(s){
-  if(s.group!=="C" || !s.status.changli) return;
+  if(!isSkillGroupActive(s,"C") || !s.status.changli) return;
   const info=ordinaryStackInfo(s,"changli");
   if(info.stack.length>=2 && hasOrdinaryBelowInStack(info.stack,"changli")){
     if(s.rng()<0.65){
@@ -138,14 +146,14 @@ function applyRoundEndSkills(s){
   }
 }
 function consumeForcedLastIds(s){
-  if(s.group!=="C") return new Set();
+  if(!isSkillGroupActive(s,"C")) return new Set();
   const ids=DANGOS.map(d=>d.id).filter(id=>s.status[id]?.forceLastNextRound);
   ids.forEach(id=>{ s.status[id].forceLastNextRound=false; });
   if(ids.length) s.log.push(`下回合最后行动标记生效：${ids.map(nameOf).join("、")}。`);
   return new Set(ids);
 }
 function checkYunoTeleportAfterAction(s,reason=""){
-  if(s.group!=="C" || !s.status.yuno || s.status.yuno.yunoUsed || s.winner) return false;
+  if(!isSkillGroupActive(s,"C") || !s.status.yuno || s.status.yuno.yunoUsed || s.winner) return false;
   const action=s.lastAction;
   const path=action?.path || [];
   const moved=action?.groupIds || [];
@@ -282,7 +290,7 @@ function kingMove(s,forcedRoll=null){
   s.lastAction.groupIds=[...finalGroup];
   s.lastAction.carryCount=Math.max(0,finalGroup.length-1);
   s.lastAction.carried=finalGroup.filter(isDango).map(shortOf);
-  if(s.group==="C") checkYunoTeleportAfterAction(s,"布大王行动结算后");
+  if(isSkillGroupActive(s,"C")) checkYunoTeleportAfterAction(s,"布大王行动结算后");
 }
 function dangoDef(id){ return DANGOS.find(d=>d.id===id) || {}; }
 function getBaseRollForDango(s,id,forcedRoll=null){
@@ -323,7 +331,7 @@ function teleportDangoToTop(s,id,targetTile){
   checkJinhsiAboveAppearedFromSnapshot(s,beforeStackChange,`${nameOf(id)}传送后`);
 }
 function attemptAemisTeleport(s, reason=""){
-  if(s.group!=="B" || !s.status.aemis || s.winner) return false;
+  if(!isSkillGroupActive(s,"B") || !s.status.aemis || s.winner) return false;
   const st=s.status.aemis;
   if(st.ghostUsed || !st.hasPassedMidpoint) return false;
   const near=findNearestDangoAhead(s, st.tile, "aemis");
@@ -339,7 +347,7 @@ function attemptAemisTeleport(s, reason=""){
   return false;
 }
 function recordAemisMidpointPass(s){
-  if(s.group!=="B" || !s.status.aemis || s.winner) return;
+  if(!isSkillGroupActive(s,"B") || !s.status.aemis || s.winner) return;
   const st=s.status.aemis;
   if(st.ghostUsed || st.hasPassedMidpoint) return;
   const path=(s.lastAction && s.lastAction.path) || [];
@@ -350,7 +358,7 @@ function recordAemisMidpointPass(s){
   s.log.push(`爱弥斯经过第${AEMIS_MIDPOINT}格中点，进入电子幽灵待触发状态；仅在她自己的主动行动结束后检查传送。`);
 }
 function checkAemisTeleportAfterOwnAction(s, actorId){
-  if(actorId!=="aemis" || s.group!=="B" || !s.status.aemis || s.winner) return;
+  if(actorId!=="aemis" || !isSkillGroupActive(s,"B") || !s.status.aemis || s.winner) return;
   const st=s.status.aemis;
   if(st.ghostUsed || !st.hasPassedMidpoint) return;
   attemptAemisTeleport(s, "爱弥斯主动行动结束");
@@ -359,7 +367,7 @@ function stepDango(s,id,forcedRoll=null){
   if(s.winner) return;
   const info=s.status[id];
   const def=dangoDef(id);
-  if(s.group==="C" && info?.skipActiveThisRound){
+  if(isSkillGroupActive(s,"C") && info?.skipActiveThisRound){
     s.lastAction={actor:id, actorName:nameOf(id), baseRoll:0, actualSteps:0, carryCount:0, carried:[], notes:["奥古斯塔顶端惩罚：本回合不能主动行动"], groupIds:[], path:[info.tile]};
     s.log.push(`${nameOf(id)} 因回合开始时位于普通团子堆叠最顶端，本回合不能主动行动。`);
     return;
@@ -369,7 +377,7 @@ function stepDango(s,id,forcedRoll=null){
   let steps=baseRoll;
   const notes=[];
 
-  if(s.group === "A"){
+  if(isSkillGroupActive(s,"A")){
     const ranking=rank(s);
     const ci=ranking.indexOf("cantarella");
     const marked=new Set((s.round>1 && ci>0)?ranking.slice(Math.max(0,ci-2),ci):[]);
@@ -378,7 +386,8 @@ function stepDango(s,id,forcedRoll=null){
     if(id==="camellya"&&info.metKing){ steps+=1; notes.push("绯雪 +1"); }
     if(id==="phoebe"&&s.rng()<.5){ steps+=1; notes.push("菲比 +1"); }
     if(id==="cartethyia"&&info.comeback&&s.rng()<.6){ steps+=2; notes.push("卡提希娅 +2"); }
-  } else if(s.group === "B"){
+  }
+  if(isSkillGroupActive(s,"B")){
     if(def.skill==="vision" && baseRoll===bGroupMinRoll(s)){ steps+=2; notes.push("视阈解明 +2"); }
     if(def.skill==="precision"){ notes.push("精密演算固定点数"); }
     if(def.skill==="colorful"){ const r=s.rng(); if(r<0.6){ steps=baseRoll*2; notes.push("炫彩时刻双倍"); } else if(r<0.8){ steps=0; notes.push("炫彩时刻无法移动"); } else { notes.push("炫彩时刻正常移动"); } }
@@ -393,9 +402,9 @@ function stepDango(s,id,forcedRoll=null){
   s.log.push(`${nameOf(id)} 掷出 ${baseRoll}，实际移动 ${steps}${notes.length?`（${notes.join("；")}）`:""}，携带：${group.map(shortOf).join("、")}`);
   moveForward(s,group,steps,id,nameOf(id));
 
-  if(s.group==="A" && id==="cartethyia"&&!info.comebackUsed&&!s.winner){ const r=rank(s); if(r[r.length-1]===id){ info.comeback=true; info.comebackUsed=true; s.log.push("卡提希娅处于最后一名，激活追赶技能。"); } }
-  if(s.group==="B"){ recordAemisMidpointPass(s); checkAemisTeleportAfterOwnAction(s,id); }
-  if(s.group==="C") checkYunoTeleportAfterAction(s,`${nameOf(id)}行动结算后`);
+  if(isSkillGroupActive(s,"A") && id==="cartethyia"&&!info.comebackUsed&&!s.winner){ const r=rank(s); if(r[r.length-1]===id){ info.comeback=true; info.comebackUsed=true; s.log.push("卡提希娅处于最后一名，激活追赶技能。"); } }
+  if(isSkillGroupActive(s,"B")){ recordAemisMidpointPass(s); checkAemisTeleportAfterOwnAction(s,id); }
+  if(isSkillGroupActive(s,"C")) checkYunoTeleportAfterAction(s,`${nameOf(id)}行动结算后`);
 }
 function buildRoundOrder(s){
   const base=DANGOS.map(d=>d.id);
