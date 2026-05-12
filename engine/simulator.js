@@ -152,12 +152,20 @@ function consumeForcedLastIds(s){
   if(ids.length) s.log.push(`下回合最后行动标记生效：${ids.map(nameOf).join("、")}。`);
   return new Set(ids);
 }
-function checkYunoTeleportAfterAction(s,reason=""){
+function recordYunoMidpointPass(s){
+  if(!isSkillGroupActive(s,"C") || !s.status.yuno || s.winner) return;
+  const st=s.status.yuno;
+  if(st.yunoUsed || st.hasPassedMidpoint) return;
+  const path=(s.lastAction && s.lastAction.path) || [];
+  const moved=(s.lastAction && s.lastAction.groupIds) || [];
+  const includesYuno=moved.includes("yuno") || s.lastAction?.actor==="yuno";
+  if(!includesYuno || !path.includes(YUNO_MIDPOINT)) return;
+  st.hasPassedMidpoint=true;
+  s.log.push(`尤诺经过第${YUNO_MIDPOINT}格中点，进入中点重排待触发状态；仅在她自己的主动行动结束后检查重排。`);
+}
+function triggerYunoTeleport(s,reason=""){
   if(!isSkillGroupActive(s,"C") || !s.status.yuno || s.status.yuno.yunoUsed || s.winner) return false;
-  const action=s.lastAction;
-  const path=action?.path || [];
-  const moved=action?.groupIds || [];
-  if(!moved.includes("yuno") || !path.slice(1).includes(YUNO_MIDPOINT)) return false;
+  if(!s.status.yuno.hasPassedMidpoint) return false;
   const before=stackSnapshot(s);
   const ranking=rank(s);
   const target=s.status.yuno.tile;
@@ -170,10 +178,14 @@ function checkYunoTeleportAfterAction(s,reason=""){
   ranking.forEach(id=>{ s.status[id].tile=target; });
   s.status.yuno.yunoUsed=true;
   const prefix=reason ? `${reason}，` : "";
-  s.log.push(`${prefix}尤诺经过第${YUNO_MIDPOINT}格，触发中点重排：所有普通团子按传送前排名堆叠到第${target}格。`);
+  s.log.push(`${prefix}尤诺触发中点重排：所有普通团子按触发前排名堆叠到第${target}格。`);
   if(s.lastAction){ s.lastAction.notes.push(`尤诺中点重排→第${target}格`); s.lastAction.path.push(target); }
   checkJinhsiAboveAppearedFromSnapshot(s,before,"尤诺中点重排后");
   return true;
+}
+function checkYunoTeleportAfterOwnAction(s,actorId){
+  if(actorId!=="yuno") return;
+  triggerYunoTeleport(s,"尤诺主动行动结束");
 }
 function mergeMovingGroupOnTile(s, group, tile, mode="normal"){
   const existing=stackAt(s,tile).filter(id=>!group.includes(id));
@@ -290,7 +302,7 @@ function kingMove(s,forcedRoll=null){
   s.lastAction.groupIds=[...finalGroup];
   s.lastAction.carryCount=Math.max(0,finalGroup.length-1);
   s.lastAction.carried=finalGroup.filter(isDango).map(shortOf);
-  if(isSkillGroupActive(s,"C")) checkYunoTeleportAfterAction(s,"布大王行动结算后");
+  if(isSkillGroupActive(s,"C")) recordYunoMidpointPass(s);
 }
 function dangoDef(id){ return DANGOS.find(d=>d.id===id) || {}; }
 function getBaseRollForDango(s,id,forcedRoll=null){
@@ -404,7 +416,7 @@ function stepDango(s,id,forcedRoll=null){
 
   if(isSkillGroupActive(s,"A") && id==="cartethyia"&&!info.comebackUsed&&!s.winner){ const r=rank(s); if(r[r.length-1]===id){ info.comeback=true; info.comebackUsed=true; s.log.push("卡提希娅处于最后一名，激活追赶技能。"); } }
   if(isSkillGroupActive(s,"B")){ recordAemisMidpointPass(s); checkAemisTeleportAfterOwnAction(s,id); }
-  if(isSkillGroupActive(s,"C")) checkYunoTeleportAfterAction(s,`${nameOf(id)}行动结算后`);
+  if(isSkillGroupActive(s,"C")){ recordYunoMidpointPass(s); checkYunoTeleportAfterOwnAction(s,id); }
 }
 function buildRoundOrder(s){
   const base=DANGOS.map(d=>d.id);
