@@ -1,6 +1,7 @@
 const MATCH_CONFIGS = {
   cnA: { matchId:"cn-a", server:"国服", group:"A", phase:"A组", participants:GROUPS.A.participants },
-  cnB: { matchId:"cn-b", server:"国服", group:"B", phase:"B组", participants:GROUPS.B.participants }
+  cnB: { matchId:"cn-b", server:"国服", group:"B", phase:"B组", participants:GROUPS.B.participants },
+  cnC: { matchId:"cn-c", server:"国服", group:"C", phase:"C组", participants:GROUPS.C.participants }
 };
 
 // 当前国服 A 组上半场排名数据源。用于复盘下半场固定开局，不能用最终排名覆盖。
