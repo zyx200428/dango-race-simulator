@@ -176,7 +176,7 @@ function mergeMovingGroupOnTile(s, group, tile, mode="normal"){
   group.forEach(id=>setIdTile(s,id,tile));
 }
 function canCamellyaMeetKingNow(s){ return s.camellyaEarlyTrigger !== false || s.round >= 3; }
-function moveForward(s,ids,steps,actorId,label){ if(!ids.length||s.winner) return; const from=getIdTile(s,ids[0]); if(s.lastAction){ s.lastAction.groupIds=[...ids]; s.lastAction.path=[from]; } const oldStack=stackAt(s,from); setStack(s,from,oldStack.filter(id=>!ids.includes(id))); let to=from; for(let i=0;i<steps;i++){ to=nextTile(to); if(s.lastAction) s.lastAction.path.push(to); } if(steps>0 && passesTileForward(from,steps,1)){
+function moveForward(s,ids,steps,actorId,label){ if(!ids.length||s.winner) return; const from=getIdTile(s,ids[0]); const beforeMoveStackChange=stackSnapshot(s); if(s.lastAction){ s.lastAction.groupIds=[...ids]; s.lastAction.path=[from]; } const oldStack=stackAt(s,from); setStack(s,from,oldStack.filter(id=>!ids.includes(id))); let to=from; for(let i=0;i<steps;i++){ to=nextTile(to); if(s.lastAction) s.lastAction.path.push(to); } if(steps>0 && passesTileForward(from,steps,1)){
     if(s.status[ids[0]]?.canFinish !== false){
       s.winner=ids[0];
       s.log.push(`${label} 到达终点，堆叠最上方 ${nameOf(ids[0])} 获胜。`);
@@ -194,21 +194,21 @@ function moveForward(s,ids,steps,actorId,label){ if(!ids.length||s.winner) retur
       s.log.push("绯雪经过布大王，但当前规则设置为第3回合后才触发，因此本次不触发技能。");
     }
   }
-  let beforeStackChange=stackSnapshot(s);
   mergeMovingGroupOnTile(s,ids,to,"normal");
-  checkJinhsiAboveAppearedFromSnapshot(s,beforeStackChange,`${label}移动落点结算后`);
+  checkJinhsiAboveAppearedFromSnapshot(s,beforeMoveStackChange,`${label}移动落点结算后`);
   const type=tileType(to);
+  let beforeStackChange;
   if(type==="裂隙"){ const st=stackAt(s,to); const hasKing=st.includes("king"); const dangos=st.filter(isDango); const shuffled=shuffle(dangos,s.rng); beforeStackChange=stackSnapshot(s); setStack(s,to,hasKing?[...shuffled,"king"]:shuffled); s.log.push(`${label} 落在第${to}格裂隙，该格堆叠随机重排。`); checkJinhsiAboveAppearedFromSnapshot(s,beforeStackChange,`${label}触发空间裂隙后`); return; }
-  if(type==="推进"||type==="阻遏"){ let extra=type==="推进"?1:-1; if(actorId==="roccia") extra += type==="推进"?3:-1; s.log.push(`${label} 触发第${to}格${type}，${extra>0?"前进":"后退"}${Math.abs(extra)}格。`); const group=stackAt(s,to).filter(id=>ids.includes(id)); setStack(s,to,stackAt(s,to).filter(id=>!group.includes(id))); let finalTile=to; for(let i=0;i<Math.abs(extra);i++){ finalTile=extra>0?nextTile(finalTile):prevTile(finalTile); if(s.lastAction) s.lastAction.path.push(finalTile); } beforeStackChange=stackSnapshot(s); mergeMovingGroupOnTile(s,group,finalTile,"normal"); checkJinhsiAboveAppearedFromSnapshot(s,beforeStackChange,`${label}触发${type}后`); }
+  if(type==="推进"||type==="阻遏"){ let extra=type==="推进"?1:-1; if(actorId==="roccia") extra += type==="推进"?3:-1; s.log.push(`${label} 触发第${to}格${type}，${extra>0?"前进":"后退"}${Math.abs(extra)}格。`); const group=stackAt(s,to).filter(id=>ids.includes(id)); beforeStackChange=stackSnapshot(s); setStack(s,to,stackAt(s,to).filter(id=>!group.includes(id))); let finalTile=to; for(let i=0;i<Math.abs(extra);i++){ finalTile=extra>0?nextTile(finalTile):prevTile(finalTile); if(s.lastAction) s.lastAction.path.push(finalTile); } mergeMovingGroupOnTile(s,group,finalTile,"normal"); checkJinhsiAboveAppearedFromSnapshot(s,beforeStackChange,`${label}触发${type}后`); }
 }
 function activeGroup(s,id){ const tile=s.status[id].tile; const st=stackAt(s,tile); const idx=st.indexOf(id); return idx<0?[]:st.slice(0,idx+1); }
 function kingGroup(s){ ensureKingActive(s); const tile=s.king.tile; const st=stackAt(s,tile); const idx=st.indexOf("king"); return idx<0?["king"]:st.slice(0,idx+1); }
 function kingMoveOneStep(s,dir){
   let group=kingGroup(s);
   const from=s.king.tile;
+  const beforeStackChange=stackSnapshot(s);
   setStack(s,from,stackAt(s,from).filter(id=>!group.includes(id)));
   const to=dir>0?nextTile(from):prevTile(from);
-  const beforeStackChange=stackSnapshot(s);
   mergeMovingGroupOnTile(s,group,to,"king");
   checkJinhsiAboveAppearedFromSnapshot(s,beforeStackChange,"布大王移动结算后");
   if(s.lastAction) s.lastAction.path.push(to);
