@@ -137,12 +137,23 @@ function testAugustaSpecialTiles() {
   assertAugustaZeroMoveOnTile(11, 10, "阻遏");
 }
 
-function testWinnerStopsAfterZeroMove() {
+function testZeroMoveOnFinishDoesNotWin() {
   const s = makeGroupState("C", { 1: ["augusta", "jinhsi", "king"] }, "augusta");
   act(s, "augusta", [0.01]);
-  assert.equal(s.winner, "augusta");
-  assert.ok(logsContain(s, "重新落在终点"));
-  assert.ok(!logsContain(s, "今汐头顶出现普通团子"));
+  assert.equal(s.lastAction.actualSteps, 0);
+  assert.equal(s.winner, null);
+  assert.equal(s.status.augusta.tile, 1);
+  assert.ok(!logsContain(s, "重新落在终点"));
+  assert.ok(!logsContain(s, "到达终点"));
+  assert.ok(logsContain(s, "今汐头顶出现普通团子"));
+}
+
+function testActualMoveIntoFinishStillWins() {
+  const s = makeGroupState("C", { 32: ["yuno"], 1: ["king"] }, "yuno");
+  act(s, "yuno", [0.99], 1);
+  assert.equal(s.lastAction.actualSteps, 1);
+  assert.equal(s.winner, "yuno");
+  assert.ok(logsContain(s, "到达终点"));
 }
 
 
@@ -270,7 +281,8 @@ const tests = [
   testAugustaNormalZeroMoveTriggersJinhsi,
   testLinneSpecialTiles,
   testAugustaSpecialTiles,
-  testWinnerStopsAfterZeroMove,
+  testZeroMoveOnFinishDoesNotWin,
+  testActualMoveIntoFinishStillWins,
   testRaceProgressMapping,
   testYunoLinearFrontBackAllowsTrigger,
   testYunoAtFinishHasNoFront,
