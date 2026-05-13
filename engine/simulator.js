@@ -24,7 +24,7 @@ const imgOf = id => DANGOS.find(d=>d.id===id)?.img || "";
 function rngFromSeed(seed){ let s = Number(seed) >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
 function randInt(rng,a,b){ return Math.floor(rng() * (b-a+1)) + a; }
 function shuffle(list,rng){ const a=[...list]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
-function initialStatus(){ return Object.fromEntries(DANGOS.map(d=>[d.id,{tile:2,lastRoll:null,metKing:false,comeback:false,comebackUsed:false,canFinish:true,rollCount:0,ghostUsed:false,hasPassedMidpoint:false,skipActiveThisRound:false,forceLastNextRound:false,activeMoveBonus:0,yunoUsed:false}])); }
+function initialStatus(){ return Object.fromEntries(DANGOS.map(d=>[d.id,{tile:2,lastRoll:null,metKing:false,comeback:false,comebackUsed:false,canFinish:true,rollCount:0,ghostUsed:false,hasPassedMidpoint:false,skipActiveThisRound:false,forceLastNextRound:false,forcedLastThisRound:false,activeMoveBonus:0,yunoUsed:false}])); }
 function prepareRoundRolls(s){
   s.baseRolls = {};
   for(const d of DANGOS){
@@ -108,28 +108,35 @@ function checkStackChangeTriggers(s,before,reason=""){
 }
 function applyRoundStartSkills(s){
   if(!isSkillGroupActive(s,"C")) return;
+  // 奥古斯塔和弗洛洛改为主动行动前实时判定；这里只清理旧回合缓存字段。
   for(const st of Object.values(s.status)){
     st.skipActiveThisRound=false;
     st.activeMoveBonus=0;
   }
+}
+function applyAugustaMoveStartSkip(s,id){
+  if(!isSkillGroupActive(s,"C") || id!=="augusta" || !s.status.augusta) return false;
+  if(s.status.augusta.forcedLastThisRound) return false;
   const aug=ordinaryStackInfo(s,"augusta");
-  if(aug.stack.length>=2 && aug.index===0){
-    s.status.augusta.skipActiveThisRound=true;
-    s.status.augusta.forceLastNextRound=true;
-    s.log.push(`回合开始：奥古斯塔位于第${aug.tile}格普通团子堆叠最顶端，本回合不能主动行动，并标记下回合最后行动。`);
-  }
-  const flo=ordinaryStackInfo(s,"flololo");
-  if(flo.stack.length>=2 && flo.index===flo.stack.length-1){
-    s.status.flololo.activeMoveBonus=3;
-    s.log.push(`回合开始：弗洛洛位于第${flo.tile}格普通团子堆叠最底层，本回合主动移动 +3。`);
-  }
+  if(aug.stack.length<2 || aug.index!==0) return false;
+  const info=s.status.augusta;
+  info.forceLastNextRound=true;
+  s.lastAction={actor:id, actorName:nameOf(id), baseRoll:0, actualSteps:0, carryCount:0, carried:[], notes:["奥古斯塔顶端压制：本次主动行动跳过"], groupIds:[], path:[info.tile]};
+  s.log.push(`奥古斯塔主动行动前位于第${aug.tile}格普通团子堆叠最顶端，本次不行动，并标记下回合最后行动。`);
+  return true;
 }
 function applyMoveStartSkills(s,id,steps,notes){
   if(!isSkillGroupActive(s,"C")) return steps;
   const info=s.status[id];
-  if(info?.activeMoveBonus){
-    steps+=info.activeMoveBonus;
-    notes.push(`弗洛洛底层加速 +${info.activeMoveBonus}`);
+  if(id==="flololo" && info){
+    info.activeMoveBonus=0;
+    const flo=ordinaryStackInfo(s,"flololo");
+    if(flo.stack.length>=2 && flo.index===flo.stack.length-1){
+      const bonus=dangoDef(id).skillParams?.bonus ?? 3;
+      info.activeMoveBonus=bonus;
+      steps+=bonus;
+      notes.push(`弗洛洛底层加速 +${bonus}`);
+    }
   }
   if(id==="calcharo" && rank(s).at(-1)===id){
     steps+=3;
@@ -151,8 +158,12 @@ function applyRoundEndSkills(s){
 }
 function consumeForcedLastIds(s){
   if(!isSkillGroupActive(s,"C")) return new Set();
+  DANGOS.forEach(d=>{ if(s.status[d.id]) s.status[d.id].forcedLastThisRound=false; });
   const ids=DANGOS.map(d=>d.id).filter(id=>s.status[id]?.forceLastNextRound);
-  ids.forEach(id=>{ s.status[id].forceLastNextRound=false; });
+  ids.forEach(id=>{
+    s.status[id].forceLastNextRound=false;
+    s.status[id].forcedLastThisRound=true;
+  });
   if(ids.length) s.log.push(`下回合最后行动标记生效：${ids.map(nameOf).join("、")}。`);
   return new Set(ids);
 }
@@ -404,11 +415,7 @@ function stepDango(s,id,forcedRoll=null){
   if(s.winner) return;
   const info=s.status[id];
   const def=dangoDef(id);
-  if(isSkillGroupActive(s,"C") && info?.skipActiveThisRound){
-    s.lastAction={actor:id, actorName:nameOf(id), baseRoll:0, actualSteps:0, carryCount:0, carried:[], notes:["奥古斯塔顶端惩罚：本回合不能主动行动"], groupIds:[], path:[info.tile]};
-    s.log.push(`${nameOf(id)} 因回合开始时位于普通团子堆叠最顶端，本回合不能主动行动。`);
-    return;
-  }
+  if(applyAugustaMoveStartSkip(s,id)) return;
   const group=activeGroup(s,id);
   const baseRoll=getBaseRollForDango(s,id,forcedRoll);
   let steps=baseRoll;
