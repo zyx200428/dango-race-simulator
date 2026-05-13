@@ -102,6 +102,10 @@ function checkJinhsiAboveAppearedFromSnapshot(s,before,reason=""){
   }
   return true;
 }
+function checkStackChangeTriggers(s,before,reason=""){
+  if(s.winner) return false;
+  return checkJinhsiAboveAppearedFromSnapshot(s,before,reason);
+}
 function applyRoundStartSkills(s){
   if(!isSkillGroupActive(s,"C")) return;
   for(const st of Object.values(s.status)){
@@ -186,7 +190,7 @@ function triggerYunoTeleport(s,reason=""){
   s.status.yuno.yunoUsed=true;
   s.log.push(`${prefix}尤诺触发中点重排：所有普通团子按触发前排名堆叠到第${target}格。`);
   if(s.lastAction){ s.lastAction.notes.push(`尤诺中点重排→第${target}格`); s.lastAction.path.push(target); }
-  checkJinhsiAboveAppearedFromSnapshot(s,before,"尤诺中点重排后");
+  checkStackChangeTriggers(s,before,"尤诺中点重排后");
   return true;
 }
 function checkYunoTeleportAfterOwnAction(s,actorId){
@@ -207,10 +211,11 @@ function checkCartethyiaComebackAfterOwnAction(s,actorId){
 function mergeMovingGroupOnTile(s, group, tile, mode="normal"){
   const existing=stackAt(s,tile).filter(id=>!group.includes(id));
   // normal: 普通团子/团子叠移动，移动来的整叠放到最上方。
-  // king: 布大王移动时钻到当前格最底部；被追上的团子会在整叠上方。
-  const merged = mode==="king" ? [...existing, ...group] : [...group, ...existing];
+  // king: 布大王保持最底部；被布大王带来的普通团子放在目标格原有普通团子上方。
+  const merged = mode==="king" ? [...group.filter(isDango), ...existing.filter(isDango), "king"] : [...group, ...existing];
   setStack(s,tile,merged);
   group.forEach(id=>setIdTile(s,id,tile));
+  if(mode==="king") setIdTile(s,"king",tile);
 }
 function canCamellyaMeetKingNow(s){ return s.camellyaEarlyTrigger !== false || s.round >= 3; }
 function moveForward(s,ids,steps,actorId,label){ if(!ids.length||s.winner) return; const from=getIdTile(s,ids[0]); const beforeMoveStackChange=stackSnapshot(s); if(s.lastAction){ s.lastAction.groupIds=[...ids]; s.lastAction.path=[from]; } const oldStack=stackAt(s,from); setStack(s,from,oldStack.filter(id=>!ids.includes(id))); let to=from; for(let i=0;i<steps;i++){ to=nextTile(to); if(s.lastAction) s.lastAction.path.push(to); } if(steps>0 && passesTileForward(from,steps,1)){
@@ -232,11 +237,12 @@ function moveForward(s,ids,steps,actorId,label){ if(!ids.length||s.winner) retur
     }
   }
   mergeMovingGroupOnTile(s,ids,to,"normal");
-  checkJinhsiAboveAppearedFromSnapshot(s,beforeMoveStackChange,`${label}移动落点结算后`);
+  checkStackChangeTriggers(s,beforeMoveStackChange,`${label}移动落点结算后`);
+  if(s.winner) return;
   const type=tileType(to);
   let beforeStackChange;
-  if(type==="裂隙"){ const st=stackAt(s,to); const hasKing=st.includes("king"); const dangos=st.filter(isDango); const shuffled=shuffle(dangos,s.rng); beforeStackChange=stackSnapshot(s); setStack(s,to,hasKing?[...shuffled,"king"]:shuffled); s.log.push(`${label} 落在第${to}格裂隙，该格堆叠随机重排。`); checkJinhsiAboveAppearedFromSnapshot(s,beforeStackChange,`${label}触发空间裂隙后`); return; }
-  if(type==="推进"||type==="阻遏"){ let extra=type==="推进"?1:-1; if(actorId==="roccia") extra += type==="推进"?3:-1; s.log.push(`${label} 触发第${to}格${type}，${extra>0?"前进":"后退"}${Math.abs(extra)}格。`); const group=stackAt(s,to).filter(id=>ids.includes(id)); beforeStackChange=stackSnapshot(s); setStack(s,to,stackAt(s,to).filter(id=>!group.includes(id))); let finalTile=to; for(let i=0;i<Math.abs(extra);i++){ finalTile=extra>0?nextTile(finalTile):prevTile(finalTile); if(s.lastAction) s.lastAction.path.push(finalTile); } mergeMovingGroupOnTile(s,group,finalTile,"normal"); checkJinhsiAboveAppearedFromSnapshot(s,beforeStackChange,`${label}触发${type}后`); }
+  if(type==="裂隙"){ const st=stackAt(s,to); const hasKing=st.includes("king"); const dangos=st.filter(isDango); const shuffled=shuffle(dangos,s.rng); beforeStackChange=stackSnapshot(s); setStack(s,to,hasKing?[...shuffled,"king"]:shuffled); s.log.push(`${label} 落在第${to}格裂隙，该格堆叠随机重排。`); checkStackChangeTriggers(s,beforeStackChange,`${label}触发空间裂隙后`); return; }
+  if(type==="推进"||type==="阻遏"){ let extra=type==="推进"?1:-1; if(actorId==="roccia") extra += type==="推进"?3:-1; s.log.push(`${label} 触发第${to}格${type}，${extra>0?"前进":"后退"}${Math.abs(extra)}格。`); const group=stackAt(s,to).filter(id=>ids.includes(id)); beforeStackChange=stackSnapshot(s); setStack(s,to,stackAt(s,to).filter(id=>!group.includes(id))); let finalTile=to; for(let i=0;i<Math.abs(extra);i++){ finalTile=extra>0?nextTile(finalTile):prevTile(finalTile); if(s.lastAction) s.lastAction.path.push(finalTile); } mergeMovingGroupOnTile(s,group,finalTile,"normal"); checkStackChangeTriggers(s,beforeStackChange,`${label}触发${type}后`); }
 }
 function activeGroup(s,id){ const tile=s.status[id].tile; const st=stackAt(s,tile); const idx=st.indexOf(id); return idx<0?[]:st.slice(0,idx+1); }
 function kingGroup(s){ ensureKingActive(s); const tile=s.king.tile; const st=stackAt(s,tile); const idx=st.indexOf("king"); return idx<0?["king"]:st.slice(0,idx+1); }
@@ -247,7 +253,8 @@ function kingMoveOneStep(s,dir){
   setStack(s,from,stackAt(s,from).filter(id=>!group.includes(id)));
   const to=dir>0?nextTile(from):prevTile(from);
   mergeMovingGroupOnTile(s,group,to,"king");
-  checkJinhsiAboveAppearedFromSnapshot(s,beforeStackChange,"布大王移动结算后");
+  checkStackChangeTriggers(s,beforeStackChange,"布大王移动结算后");
+  if(s.winner) return to;
   if(s.lastAction) s.lastAction.path.push(to);
   const st=stackAt(s,to);
   if(st.includes("camellya")){
@@ -277,7 +284,7 @@ function kingApplySpecialOnce(s){
     const beforeStackChange=stackSnapshot(s);
     setStack(s,tile,[...shuffled,"king"]);
     s.log.push(`布大王落在第${tile}格空间裂隙，该格布大王上方团子随机重排；本次行动只触发一次特殊格。`);
-    checkJinhsiAboveAppearedFromSnapshot(s,beforeStackChange,"布大王触发空间裂隙后");
+    checkStackChangeTriggers(s,beforeStackChange,"布大王触发空间裂隙后");
     if(s.lastAction) s.lastAction.notes.push("裂隙重排");
   }
 }
@@ -312,9 +319,10 @@ function kingMove(s,forcedRoll=null){
   const roll=forcedRoll ?? (s.baseRolls&&s.baseRolls.king) ?? randInt(s.rng,1,6);
   const from=s.king.tile;
   s.lastAction={actor:"king", actorName:"布大王", baseRoll:roll, actualSteps:roll, carryCount:Math.max(0,kingGroup(s).length-1), carried:kingGroup(s).filter(isDango).map(shortOf), notes:["反向移动"], groupIds:[...kingGroup(s)], path:[from]};
-  for(let i=0;i<roll;i++) kingMoveOneStep(s,-1);
+  for(let i=0;i<roll;i++){ kingMoveOneStep(s,-1); if(s.winner) return; }
   s.log.push(`布大王掷出 ${roll}，反向移动：第${from}格 → 第${s.king.tile}格。`);
   kingApplySpecialOnce(s);
+  if(s.winner) return;
   const finalGroup=kingGroup(s);
   s.lastAction.groupIds=[...finalGroup];
   s.lastAction.carryCount=Math.max(0,finalGroup.length-1);
@@ -357,7 +365,7 @@ function teleportDangoToTop(s,id,targetTile){
   const st=stackAt(s,targetTile);
   setStack(s,targetTile,[id,...st]);
   s.status[id].tile=targetTile;
-  checkJinhsiAboveAppearedFromSnapshot(s,beforeStackChange,`${nameOf(id)}传送后`);
+  checkStackChangeTriggers(s,beforeStackChange,`${nameOf(id)}传送后`);
 }
 function attemptAemisTeleport(s, reason=""){
   if(!isSkillGroupActive(s,"B") || !s.status.aemis || s.winner) return false;
@@ -430,6 +438,7 @@ function stepDango(s,id,forcedRoll=null){
   s.lastAction={actor:id, actorName:nameOf(id), baseRoll, actualSteps:steps, carryCount:group.length, carried:group.map(shortOf), notes:[...notes], groupIds:[...group], path:[]};
   s.log.push(`${nameOf(id)} 掷出 ${baseRoll}，实际移动 ${steps}${notes.length?`（${notes.join("；")}）`:""}，携带：${group.map(shortOf).join("、")}`);
   moveForward(s,group,steps,id,nameOf(id));
+  if(s.winner) return;
 
   // 主动行动结束类技能统一放在移动、落点堆叠和地图机关结算完成后检查。
   checkCartethyiaComebackAfterOwnAction(s,id);
@@ -448,7 +457,7 @@ function advanceTurn(inputState,forcedRoll=null){
   if(s.winner) return s;
   if(s.round>=3) ensureKingActive(s);
   const current=s.order[s.turnIndex];
-  if(current==="king"){ kingMove(s,forcedRoll); recordAemisMidpointPass(s); }
+  if(current==="king"){ kingMove(s,forcedRoll); if(s.winner){ const last=rank(s).at(-1); s.log.push(`比赛结束：最后一名为 ${nameOf(last)}，布大王位于第${s.king.tile}格。`); return s; } recordAemisMidpointPass(s); }
   else stepDango(s,current,forcedRoll);
   if(s.winner){ const last=rank(s).at(-1); s.log.push(`比赛结束：最后一名为 ${nameOf(last)}，布大王位于第${s.king.tile}格。`); return s; }
   s.turnIndex++;
