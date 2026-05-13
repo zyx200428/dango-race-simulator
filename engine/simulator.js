@@ -45,6 +45,22 @@ function setIdTile(s,id,tile){ if(id==="king") s.king.tile=tile; else if(s.statu
 function removeIdFromAllStacks(s,id){ for(const k of Object.keys(s.stacks)){ const next=s.stacks[k].filter(x=>x!==id); setStack(s,Number(k),next); } }
 function placeKingAt(s,tile){ removeIdFromAllStacks(s,"king"); const st=stackAt(s,tile).filter(id=>id!=="king"); st.push("king"); setStack(s,tile,st); s.king.tile=tile; s.king.active=true; }
 function ensureKingActive(s){ if(!s.king.active){ placeKingAt(s,1); s.log.push("布大王从第1格登场。 "); } else { const st=stackAt(s,s.king.tile); if(!st.includes("king")) placeKingAt(s,s.king.tile); } }
+function raceProgress(tile){ return tile===1 ? 31 : tile-2; }
+function hasOrdinaryDangoAheadAndBehind(s,id){
+  const st=s.status[id];
+  if(!st) return {ahead:false, behind:false, progress:null};
+  const progress=raceProgress(st.tile);
+  let ahead=false;
+  let behind=false;
+  for(const d of DANGOS){
+    if(d.id===id || !s.status[d.id]) continue;
+    const otherProgress=raceProgress(s.status[d.id].tile);
+    if(otherProgress>progress) ahead=true;
+    if(otherProgress<progress) behind=true;
+    if(ahead && behind) break;
+  }
+  return {ahead, behind, progress};
+}
 function raceScore(s,id){
   const st=s.status[id];
   // 普通开局：第2格是起点，第1格是终点；分数用格子顺序近似排名。
@@ -180,14 +196,13 @@ function recordYunoMidpointPass(s){
 function triggerYunoTeleport(s,reason=""){
   if(!isSkillGroupActive(s,"C") || !s.status.yuno || s.status.yuno.yunoUsed || s.winner) return false;
   if(!s.status.yuno.hasPassedMidpoint) return false;
-  const ranking=rank(s);
-  const yunoRank=ranking.indexOf("yuno");
+  const {ahead, behind, progress}=hasOrdinaryDangoAheadAndBehind(s,"yuno");
   const prefix=reason ? `${reason}，` : "";
-  if(yunoRank<=0 || yunoRank>=ranking.length-1){
-    const rankText=yunoRank>=0 ? `当前第${yunoRank+1}名` : "当前排名未知";
-    s.log.push(`${prefix}尤诺${rankText}，排名前后不同时存在其他普通团子，中点重排继续等待。`);
+  if(!ahead || !behind){
+    s.log.push(`${prefix}尤诺当前位于第${s.status.yuno.tile}格（线性进度${progress}），前方和后方不同时存在其他普通团子，中点重排继续等待。`);
     return false;
   }
+  const ranking=rank(s);
   const before=stackSnapshot(s);
   const target=s.status.yuno.tile;
   for(const tile of Object.keys(s.stacks)){

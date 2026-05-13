@@ -23,6 +23,8 @@ this.api = {
   runBatchAsync,
   advanceTurn,
   stackAt,
+  raceProgress,
+  triggerYunoTeleport,
   DEFAULT_RANKING_KEY,
 };
 `, context);
@@ -143,6 +145,73 @@ function testWinnerStopsAfterZeroMove() {
   assert.ok(!logsContain(s, "今汐头顶出现普通团子"));
 }
 
+
+function makeYunoReadyState(stacks) {
+  const s = makeGroupState("C", stacks, "yuno");
+  s.status.yuno.hasPassedMidpoint = true;
+  s.status.yuno.yunoUsed = false;
+  return s;
+}
+
+function testRaceProgressMapping() {
+  assert.equal(api.raceProgress(2), 0);
+  assert.equal(api.raceProgress(3), 1);
+  assert.equal(api.raceProgress(32), 30);
+  assert.equal(api.raceProgress(1), 31);
+}
+
+function testYunoLinearFrontBackAllowsTrigger() {
+  const s = makeYunoReadyState({
+    32: ["flololo"],
+    1: ["jinhsi", "king"],
+    2: ["changli"],
+    10: ["yuno", "augusta"],
+    12: ["calcharo"],
+  });
+  const triggered = api.triggerYunoTeleport(s, "测试");
+  assert.equal(triggered, true);
+  assert.equal(s.status.yuno.yunoUsed, true);
+  assert.ok(Object.values(s.status).every(status => status.tile === 10));
+}
+
+function testYunoAtFinishHasNoFront() {
+  const s = makeYunoReadyState({
+    1: ["yuno", "king"],
+    2: ["augusta"],
+    3: ["flololo"],
+    32: ["changli"],
+  });
+  const triggered = api.triggerYunoTeleport(s, "测试");
+  assert.equal(triggered, false);
+  assert.equal(s.status.yuno.yunoUsed, false);
+  assert.ok(logsContain(s, "前方和后方不同时存在其他普通团子"));
+}
+
+function testYunoAtStartHasNoBehind() {
+  const s = makeYunoReadyState({
+    1: ["augusta", "king"],
+    2: ["yuno"],
+    3: ["flololo"],
+    32: ["changli"],
+  });
+  const triggered = api.triggerYunoTeleport(s, "测试");
+  assert.equal(triggered, false);
+  assert.equal(s.status.yuno.yunoUsed, false);
+  assert.ok(logsContain(s, "前方和后方不同时存在其他普通团子"));
+}
+
+function testYunoIgnoresSameTileAndKingForFrontBack() {
+  const s = makeYunoReadyState({
+    9: ["king"],
+    10: ["yuno", "augusta", "flololo", "jinhsi"],
+    11: ["changli"],
+    12: ["calcharo"],
+  });
+  const triggered = api.triggerYunoTeleport(s, "测试");
+  assert.equal(triggered, false);
+  assert.equal(s.status.yuno.yunoUsed, false);
+}
+
 function testBatchGroupsComplete() {
   for (const group of ["A", "B", "C"]) {
     for (let seed = 1; seed <= 25; seed++) {
@@ -202,6 +271,11 @@ const tests = [
   testLinneSpecialTiles,
   testAugustaSpecialTiles,
   testWinnerStopsAfterZeroMove,
+  testRaceProgressMapping,
+  testYunoLinearFrontBackAllowsTrigger,
+  testYunoAtFinishHasNoFront,
+  testYunoAtStartHasNoBehind,
+  testYunoIgnoresSameTileAndKingForFrontBack,
   testBatchGroupsComplete,
   testRunBatchAsyncCompletes,
   testStageGroupCompletes,
