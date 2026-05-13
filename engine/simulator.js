@@ -72,6 +72,17 @@ function raceScore(s,id){
 function rank(s){ return DANGOS.map(d=>({id:d.id,tile:s.status[d.id].tile,score:raceScore(s,d.id)})).sort((a,b)=>{ if(b.score!==a.score) return b.score-a.score; return stackAt(s,a.tile).indexOf(a.id)-stackAt(s,b.tile).indexOf(b.id); }).map(x=>x.id); }
 function passesTileForward(from,steps,target){ for(let i=1;i<=steps;i++) if(nextTile(from,i)===target) return true; return false; }
 function passesTileBackward(from,steps,target){ for(let i=1;i<=steps;i++) if(prevTile(from,i)===target) return true; return false; }
+function resolveFinishPass(s,ids,label){
+  if(!ids.length) return false;
+  if(s.status[ids[0]]?.canFinish !== false){
+    s.winner=ids[0];
+    s.log.push(`${label} 到达终点，堆叠最上方 ${nameOf(ids[0])} 获胜。`);
+    return true;
+  }
+  ids.forEach(id=>{ if(s.status[id]) s.status[id].canFinish=true; });
+  s.log.push(`${label} 第一次经过终点，本次不结算；该叠团子已获得下一次终点结算资格。`);
+  return false;
+}
 function ordinaryStackAt(s,tile){ return stackAt(s,tile).filter(isDango); }
 function ordinaryStackFromSnapshot(snapshot,tile){ return (snapshot[tile] || []).filter(isDango); }
 function ordinaryStackInfo(s,id){
@@ -255,14 +266,7 @@ function moveForward(s,ids,steps,actorId,label){
   let to=from;
   for(let i=0;i<steps;i++){ to=nextTile(to); if(s.lastAction) s.lastAction.path.push(to); }
   if(steps>0 && passesTileForward(from,steps,1)){
-    if(s.status[ids[0]]?.canFinish !== false){
-      s.winner=ids[0];
-      s.log.push(`${label} 到达终点，堆叠最上方 ${nameOf(ids[0])} 获胜。`);
-      return;
-    } else {
-      ids.forEach(id=>{ if(s.status[id]) s.status[id].canFinish=true; });
-      s.log.push(`${label} 第一次经过终点，本次不结算；该叠团子已获得下一次终点结算资格。`);
-    }
+    if(resolveFinishPass(s,ids,label)) return;
   }
   if(s.king.active && ids.includes("camellya") && (passesTileForward(from,steps,s.king.tile)||to===s.king.tile)){
     if(canCamellyaMeetKingNow(s)){
@@ -273,15 +277,6 @@ function moveForward(s,ids,steps,actorId,label){
     }
   }
   mergeMovingGroupOnTile(s,ids,to,"normal");
-  if(zeroMoveAction && to===1){
-    if(s.status[ids[0]]?.canFinish !== false){
-      s.winner=ids[0];
-      s.log.push(`${label} 重新落在终点，堆叠最上方 ${nameOf(ids[0])} 获胜。`);
-      return;
-    }
-    ids.forEach(id=>{ if(s.status[id]) s.status[id].canFinish=true; });
-    s.log.push(`${label} 第一次在终点重新落点，本次不结算；该叠团子已获得下一次终点结算资格。`);
-  }
   if(!zeroMoveAction){
     checkStackChangeTriggers(s,beforeMoveStackChange,`${label}移动落点结算后`);
     if(s.winner) return;
@@ -307,7 +302,10 @@ function moveForward(s,ids,steps,actorId,label){
     beforeStackChange=zeroMoveAction ? afterLiftStackChange : stackSnapshot(s);
     setStack(s,to,stackAt(s,to).filter(id=>!group.includes(id)));
     let finalTile=to;
-    for(let i=0;i<Math.abs(extra);i++){ finalTile=extra>0?nextTile(finalTile):prevTile(finalTile); if(s.lastAction) s.lastAction.path.push(finalTile); }
+    const extraSteps=Math.abs(extra);
+    for(let i=0;i<extraSteps;i++){ finalTile=extra>0?nextTile(finalTile):prevTile(finalTile); if(s.lastAction) s.lastAction.path.push(finalTile); }
+    const passedFinish=extra>0 ? passesTileForward(to,extraSteps,1) : passesTileBackward(to,extraSteps,1);
+    if(passedFinish && resolveFinishPass(s,group,label)) return;
     mergeMovingGroupOnTile(s,group,finalTile,"normal");
     checkStackChangeTriggers(s,beforeStackChange,`${label}触发${type}后`);
     return;
