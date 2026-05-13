@@ -114,15 +114,14 @@ function applyRoundStartSkills(s){
     st.activeMoveBonus=0;
   }
 }
-function applyAugustaMoveStartSkip(s,id){
+function applyAugustaMoveStartZeroMove(s,id,notes){
   if(!isSkillGroupActive(s,"C") || id!=="augusta" || !s.status.augusta) return false;
   if(s.status.augusta.forcedLastThisRound) return false;
   const aug=ordinaryStackInfo(s,"augusta");
   if(aug.stack.length<2 || aug.index!==0) return false;
-  const info=s.status.augusta;
-  info.forceLastNextRound=true;
-  s.lastAction={actor:id, actorName:nameOf(id), baseRoll:0, actualSteps:0, carryCount:0, carried:[], notes:["奥古斯塔顶端压制：本次主动行动跳过"], groupIds:[], path:[info.tile]};
-  s.log.push(`奥古斯塔主动行动前位于第${aug.tile}格普通团子堆叠最顶端，本次不行动，并标记下回合最后行动。`);
+  s.status.augusta.forceLastNextRound=true;
+  if(notes) notes.push("奥古斯塔顶端压制：0步重新落点");
+  s.log.push(`奥古斯塔主动行动前位于第${aug.tile}格普通团子堆叠最顶端，本次以 0 步重新落点，并标记下回合最后行动。`);
   return true;
 }
 function applyMoveStartSkills(s,id,steps,notes){
@@ -229,7 +228,18 @@ function mergeMovingGroupOnTile(s, group, tile, mode="normal"){
   if(mode==="king") setIdTile(s,"king",tile);
 }
 function canCamellyaMeetKingNow(s){ return s.camellyaEarlyTrigger !== false || s.round >= 3; }
-function moveForward(s,ids,steps,actorId,label){ if(!ids.length||s.winner) return; const from=getIdTile(s,ids[0]); const beforeMoveStackChange=stackSnapshot(s); if(s.lastAction){ s.lastAction.groupIds=[...ids]; s.lastAction.path=[from]; } const oldStack=stackAt(s,from); setStack(s,from,oldStack.filter(id=>!ids.includes(id))); let to=from; for(let i=0;i<steps;i++){ to=nextTile(to); if(s.lastAction) s.lastAction.path.push(to); } if(steps>0 && passesTileForward(from,steps,1)){
+function moveForward(s,ids,steps,actorId,label){
+  if(!ids.length||s.winner) return;
+  const from=getIdTile(s,ids[0]);
+  const zeroMoveAction=steps===0;
+  const beforeMoveStackChange=stackSnapshot(s);
+  if(s.lastAction){ s.lastAction.groupIds=[...ids]; s.lastAction.path=[from]; }
+  const oldStack=stackAt(s,from);
+  setStack(s,from,oldStack.filter(id=>!ids.includes(id)));
+  const afterLiftStackChange=zeroMoveAction ? stackSnapshot(s) : null;
+  let to=from;
+  for(let i=0;i<steps;i++){ to=nextTile(to); if(s.lastAction) s.lastAction.path.push(to); }
+  if(steps>0 && passesTileForward(from,steps,1)){
     if(s.status[ids[0]]?.canFinish !== false){
       s.winner=ids[0];
       s.log.push(`${label} 到达终点，堆叠最上方 ${nameOf(ids[0])} 获胜。`);
@@ -248,12 +258,46 @@ function moveForward(s,ids,steps,actorId,label){ if(!ids.length||s.winner) retur
     }
   }
   mergeMovingGroupOnTile(s,ids,to,"normal");
-  checkStackChangeTriggers(s,beforeMoveStackChange,`${label}移动落点结算后`);
-  if(s.winner) return;
+  if(zeroMoveAction && to===1){
+    if(s.status[ids[0]]?.canFinish !== false){
+      s.winner=ids[0];
+      s.log.push(`${label} 重新落在终点，堆叠最上方 ${nameOf(ids[0])} 获胜。`);
+      return;
+    }
+    ids.forEach(id=>{ if(s.status[id]) s.status[id].canFinish=true; });
+    s.log.push(`${label} 第一次在终点重新落点，本次不结算；该叠团子已获得下一次终点结算资格。`);
+  }
+  if(!zeroMoveAction){
+    checkStackChangeTriggers(s,beforeMoveStackChange,`${label}移动落点结算后`);
+    if(s.winner) return;
+  }
   const type=tileType(to);
   let beforeStackChange;
-  if(type==="裂隙"){ const st=stackAt(s,to); const hasKing=st.includes("king"); const dangos=st.filter(isDango); const shuffled=shuffle(dangos,s.rng); beforeStackChange=stackSnapshot(s); setStack(s,to,hasKing?[...shuffled,"king"]:shuffled); s.log.push(`${label} 落在第${to}格裂隙，该格堆叠随机重排。`); checkStackChangeTriggers(s,beforeStackChange,`${label}触发空间裂隙后`); return; }
-  if(type==="推进"||type==="阻遏"){ let extra=type==="推进"?1:-1; if(actorId==="roccia") extra += type==="推进"?3:-1; s.log.push(`${label} 触发第${to}格${type}，${extra>0?"前进":"后退"}${Math.abs(extra)}格。`); const group=stackAt(s,to).filter(id=>ids.includes(id)); beforeStackChange=stackSnapshot(s); setStack(s,to,stackAt(s,to).filter(id=>!group.includes(id))); let finalTile=to; for(let i=0;i<Math.abs(extra);i++){ finalTile=extra>0?nextTile(finalTile):prevTile(finalTile); if(s.lastAction) s.lastAction.path.push(finalTile); } mergeMovingGroupOnTile(s,group,finalTile,"normal"); checkStackChangeTriggers(s,beforeStackChange,`${label}触发${type}后`); }
+  if(type==="裂隙"){
+    const st=stackAt(s,to);
+    const hasKing=st.includes("king");
+    const dangos=st.filter(isDango);
+    const shuffled=shuffle(dangos,s.rng);
+    beforeStackChange=zeroMoveAction ? afterLiftStackChange : stackSnapshot(s);
+    setStack(s,to,hasKing?[...shuffled,"king"]:shuffled);
+    s.log.push(`${label} 落在第${to}格裂隙，该格堆叠随机重排。`);
+    checkStackChangeTriggers(s,beforeStackChange,`${label}触发空间裂隙后`);
+    return;
+  }
+  if(type==="推进"||type==="阻遏"){
+    let extra=type==="推进"?1:-1;
+    if(actorId==="roccia") extra += type==="推进"?3:-1;
+    s.log.push(`${label} 触发第${to}格${type}，${extra>0?"前进":"后退"}${Math.abs(extra)}格。`);
+    const group=stackAt(s,to).filter(id=>ids.includes(id));
+    beforeStackChange=zeroMoveAction ? afterLiftStackChange : stackSnapshot(s);
+    setStack(s,to,stackAt(s,to).filter(id=>!group.includes(id)));
+    let finalTile=to;
+    for(let i=0;i<Math.abs(extra);i++){ finalTile=extra>0?nextTile(finalTile):prevTile(finalTile); if(s.lastAction) s.lastAction.path.push(finalTile); }
+    mergeMovingGroupOnTile(s,group,finalTile,"normal");
+    checkStackChangeTriggers(s,beforeStackChange,`${label}触发${type}后`);
+    return;
+  }
+  if(zeroMoveAction) checkStackChangeTriggers(s,afterLiftStackChange,`${label}移动落点结算后`);
 }
 function activeGroup(s,id){ const tile=s.status[id].tile; const st=stackAt(s,tile); const idx=st.indexOf(id); return idx<0?[]:st.slice(0,idx+1); }
 function kingGroup(s){ ensureKingActive(s); const tile=s.king.tile; const st=stackAt(s,tile); const idx=st.indexOf("king"); return idx<0?["king"]:st.slice(0,idx+1); }
@@ -415,11 +459,13 @@ function stepDango(s,id,forcedRoll=null){
   if(s.winner) return;
   const info=s.status[id];
   const def=dangoDef(id);
-  if(applyAugustaMoveStartSkip(s,id)) return;
   const group=activeGroup(s,id);
   const baseRoll=getBaseRollForDango(s,id,forcedRoll);
   let steps=baseRoll;
   const notes=[];
+  // skipAction would return before moveForward; zeroMoveAction continues through
+  // the normal lift, re-land, special-tile, and end-of-action pipeline.
+  const augustaZeroMove=applyAugustaMoveStartZeroMove(s,id,notes);
 
   if(isSkillGroupActive(s,"A")){
     const ranking=rank(s);
@@ -438,6 +484,7 @@ function stepDango(s,id,forcedRoll=null){
     if(def.skill==="future"){ notes.push("收束的未来：只出2或3"); }
     if(def.skill==="profit" && s.rng()<0.28){ steps=baseRoll*2; notes.push("利润加倍：双倍点数"); }
   }
+  if(augustaZeroMove) steps=0;
   steps=applyMoveStartSkills(s,id,steps,notes);
 
   info.lastRoll=baseRoll;
