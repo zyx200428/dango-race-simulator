@@ -25,6 +25,9 @@ this.api = {
   stackAt,
   raceProgress,
   triggerYunoTeleport,
+  applyRoundEndSkills,
+  attemptAemisTeleport,
+  finalRanking,
   DEFAULT_RANKING_KEY,
 };
 `, context);
@@ -223,6 +226,75 @@ function testYunoIgnoresSameTileAndKingForFrontBack() {
   assert.equal(s.status.yuno.yunoUsed, false);
 }
 
+function testChangliSeesKingBelow() {
+  const s = makeGroupState("C", { 5: ["changli", "king"] }, "changli");
+  s.rng = sequenceRng([0.1]);
+  api.applyRoundEndSkills(s);
+  assert.equal(s.status.changli.forceLastNextRound, true);
+  assert.ok(logsContain(s, "长离下方有堆叠单位"));
+}
+
+function testAugustaSeesKingAsPhysicalStack() {
+  const s = makeGroupState("C", { 5: ["augusta", "king"] }, "augusta");
+  act(s, "augusta", [0.99], 1);
+  assert.equal(s.lastAction.actualSteps, 0);
+  assert.deepEqual(Array.from(api.stackAt(s, 5)), ["augusta", "king"]);
+  assert.equal(s.status.augusta.forceLastNextRound, true);
+  assert.ok(logsContain(s, "物理堆叠最顶端"));
+}
+
+function testFlololoDoesNotTreatKingBelowAsBottom() {
+  const s = makeGroupState("C", { 5: ["flololo", "king"] }, "flololo");
+  act(s, "flololo", [0.99], 1);
+  assert.equal(s.lastAction.actualSteps, 1);
+  assert.equal(s.status.flololo.activeMoveBonus, 0);
+  assert.ok(!s.lastAction.notes.some(note => note.includes("弗洛洛底层加速")));
+}
+
+function testFlololoBottomWithoutKingStillTriggers() {
+  const s = makeGroupState("C", { 5: ["augusta", "flololo"] }, "flololo");
+  act(s, "flololo", [0.99], 1);
+  assert.equal(s.lastAction.actualSteps, 4);
+  assert.equal(s.status.flololo.activeMoveBonus, 3);
+  assert.ok(s.lastAction.notes.some(note => note.includes("弗洛洛底层加速 +3")));
+}
+
+function testFinalRankingExcludesKing() {
+  const s = makeGroupState("C", { 1: ["augusta", "king"], 2: ["yuno"], 3: ["flololo"], 4: ["changli"], 5: ["jinhsi"], 6: ["calcharo"] }, "augusta");
+  s.winner = "augusta";
+  const ranking = api.finalRanking(s);
+  assert.equal(ranking.length, 6);
+  assert.ok(!ranking.includes("king"));
+}
+
+function testYunoReorderKeepsKingOutOfRanking() {
+  const s = makeYunoReadyState({
+    1: ["flololo"],
+    9: ["changli"],
+    10: ["yuno", "king"],
+    12: ["augusta"],
+    14: ["jinhsi"],
+    16: ["calcharo"],
+  });
+  const triggered = api.triggerYunoTeleport(s, "测试");
+  const stack = api.stackAt(s, 10);
+  assert.equal(triggered, true);
+  assert.equal(stack.length, 7);
+  assert.equal(stack.at(-1), "king");
+  assert.equal(stack.filter(id => id === "king").length, 1);
+  assert.equal(stack.filter(id => id !== "king").length, 6);
+}
+
+function testAemisDoesNotTargetKing() {
+  const s = makeGroupState("B", { 10: ["aemis"], 12: ["king"] }, "aemis");
+  s.status.aemis.hasPassedMidpoint = true;
+  const triggered = api.attemptAemisTeleport(s, "测试");
+  assert.equal(triggered, false);
+  assert.equal(s.status.aemis.ghostUsed, false);
+  assert.equal(s.status.aemis.tile, 10);
+  assert.ok(logsContain(s, "没有其他非布大王团子"));
+}
+
 function testBatchGroupsComplete() {
   for (const group of ["A", "B", "C"]) {
     for (let seed = 1; seed <= 25; seed++) {
@@ -288,6 +360,13 @@ const tests = [
   testYunoAtFinishHasNoFront,
   testYunoAtStartHasNoBehind,
   testYunoIgnoresSameTileAndKingForFrontBack,
+  testChangliSeesKingBelow,
+  testAugustaSeesKingAsPhysicalStack,
+  testFlololoDoesNotTreatKingBelowAsBottom,
+  testFlololoBottomWithoutKingStillTriggers,
+  testFinalRankingExcludesKing,
+  testYunoReorderKeepsKingOutOfRanking,
+  testAemisDoesNotTargetKing,
   testBatchGroupsComplete,
   testRunBatchAsyncCompletes,
   testStageGroupCompletes,

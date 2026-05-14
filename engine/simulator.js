@@ -69,7 +69,7 @@ function raceScore(s,id){
   if(s.startMode==="secondHalf" && st.canFinish) return 32 + (st.tile - 1);
   return st.tile - 1;
 }
-function rank(s){ return DANGOS.map(d=>({id:d.id,tile:s.status[d.id].tile,score:raceScore(s,d.id)})).sort((a,b)=>{ if(b.score!==a.score) return b.score-a.score; return stackAt(s,a.tile).indexOf(a.id)-stackAt(s,b.tile).indexOf(b.id); }).map(x=>x.id); }
+function rank(s){ return DANGOS.map(d=>({id:d.id,tile:s.status[d.id].tile,score:raceScore(s,d.id)})).sort((a,b)=>{ if(b.score!==a.score) return b.score-a.score; return ordinaryStackAt(s,a.tile).indexOf(a.id)-ordinaryStackAt(s,b.tile).indexOf(b.id); }).map(x=>x.id); }
 function passesTileForward(from,steps,target){ for(let i=1;i<=steps;i++) if(nextTile(from,i)===target) return true; return false; }
 function passesTileBackward(from,steps,target){ for(let i=1;i<=steps;i++) if(prevTile(from,i)===target) return true; return false; }
 function resolveFinishPass(s,ids,label){
@@ -84,26 +84,27 @@ function resolveFinishPass(s,ids,label){
   return false;
 }
 function ordinaryStackAt(s,tile){ return stackAt(s,tile).filter(isDango); }
-function ordinaryStackFromSnapshot(snapshot,tile){ return (snapshot[tile] || []).filter(isDango); }
-function ordinaryStackInfo(s,id){
-  const st=s.status[id];
-  if(!st) return {stack:[], index:-1, tile:null};
-  const stack=ordinaryStackAt(s,st.tile);
-  return {stack, index:stack.indexOf(id), tile:st.tile};
+function getPhysicalStack(s,tile){ const st=stackAt(s,tile); return [...st.filter(isDango), ...(st.includes("king")?["king"]:[])]; }
+function physicalStackFromSnapshot(snapshot,tile){ const st=snapshot[tile] || []; return [...st.filter(isDango), ...(st.includes("king")?["king"]:[])]; }
+function physicalStackInfo(s,id){
+  const tile=getIdTile(s,id);
+  if(!tile) return {stack:[], index:-1, tile:null};
+  const stack=getPhysicalStack(s,tile);
+  return {stack, index:stack.indexOf(id), tile};
 }
-function hasOrdinaryAboveInStack(stack,id){ const idx=stack.indexOf(id); return idx>0; }
-function hasOrdinaryBelowInStack(stack,id){ const idx=stack.indexOf(id); return idx>=0 && idx<stack.length-1; }
+function hasPhysicalAboveInStack(stack,id){ const idx=stack.indexOf(id); return idx>0; }
+function hasPhysicalBelowInStack(stack,id){ const idx=stack.indexOf(id); return idx>=0 && idx<stack.length-1; }
 function stackSnapshot(s){ return Object.fromEntries(Object.entries(s.stacks).map(([tile,ids])=>[tile,[...ids]])); }
-function snapshotHasOrdinaryAbove(snapshot,id){
+function snapshotHasPhysicalAbove(snapshot,id){
   for(const tile of Object.keys(snapshot)){
-    const stack=ordinaryStackFromSnapshot(snapshot,tile);
-    if(hasOrdinaryAboveInStack(stack,id)) return true;
+    const stack=physicalStackFromSnapshot(snapshot,tile);
+    if(hasPhysicalAboveInStack(stack,id)) return true;
   }
   return false;
 }
-function stateHasOrdinaryAbove(s,id){
-  const info=ordinaryStackInfo(s,id);
-  return hasOrdinaryAboveInStack(info.stack,id);
+function stateHasPhysicalAbove(s,id){
+  const info=physicalStackInfo(s,id);
+  return hasPhysicalAboveInStack(info.stack,id);
 }
 function moveDangoToTopNoStackCheck(s,id){
   const tile=s.status[id]?.tile;
@@ -114,8 +115,8 @@ function moveDangoToTopNoStackCheck(s,id){
 }
 function checkJinhsiAboveAppearedFromSnapshot(s,before,reason=""){
   if(!isSkillGroupActive(s,"C") || !s.status.jinhsi || s.winner) return false;
-  const beforeAbove=snapshotHasOrdinaryAbove(before,"jinhsi");
-  const afterAbove=stateHasOrdinaryAbove(s,"jinhsi");
+  const beforeAbove=snapshotHasPhysicalAbove(before,"jinhsi");
+  const afterAbove=stateHasPhysicalAbove(s,"jinhsi");
   if(beforeAbove || !afterAbove) return false;
   const ok=s.rng()<0.4;
   const prefix=reason ? `${reason}，` : "";
@@ -144,11 +145,11 @@ function applyRoundStartSkills(s){
 function applyAugustaMoveStartZeroMove(s,id,notes){
   if(!isSkillGroupActive(s,"C") || id!=="augusta" || !s.status.augusta) return false;
   if(s.status.augusta.forcedLastThisRound) return false;
-  const aug=ordinaryStackInfo(s,"augusta");
+  const aug=physicalStackInfo(s,"augusta");
   if(aug.stack.length<2 || aug.index!==0) return false;
   s.status.augusta.forceLastNextRound=true;
   if(notes) notes.push("奥古斯塔顶端压制：0步重新落点");
-  s.log.push(`奥古斯塔主动行动前位于第${aug.tile}格普通团子堆叠最顶端，本次以 0 步重新落点，并标记下回合最后行动。`);
+  s.log.push(`奥古斯塔主动行动前位于第${aug.tile}格物理堆叠最顶端，本次以 0 步重新落点，并标记下回合最后行动。`);
   return true;
 }
 function applyMoveStartSkills(s,id,steps,notes){
@@ -156,7 +157,7 @@ function applyMoveStartSkills(s,id,steps,notes){
   const info=s.status[id];
   if(id==="flololo" && info){
     info.activeMoveBonus=0;
-    const flo=ordinaryStackInfo(s,"flololo");
+    const flo=physicalStackInfo(s,"flololo");
     if(flo.stack.length>=2 && flo.index===flo.stack.length-1){
       const bonus=dangoDef(id).skillParams?.bonus ?? 3;
       info.activeMoveBonus=bonus;
@@ -172,13 +173,13 @@ function applyMoveStartSkills(s,id,steps,notes){
 }
 function applyRoundEndSkills(s){
   if(!isSkillGroupActive(s,"C") || !s.status.changli) return;
-  const info=ordinaryStackInfo(s,"changli");
-  if(info.stack.length>=2 && hasOrdinaryBelowInStack(info.stack,"changli")){
+  const info=physicalStackInfo(s,"changli");
+  if(info.stack.length>=2 && hasPhysicalBelowInStack(info.stack,"changli")){
     if(s.rng()<0.65){
       s.status.changli.forceLastNextRound=true;
-      s.log.push(`回合结束：长离下方有普通团子，65% 判定成功，标记下回合最后行动。`);
+      s.log.push(`回合结束：长离下方有堆叠单位，65% 判定成功，标记下回合最后行动。`);
     } else {
-      s.log.push(`回合结束：长离下方有普通团子，65% 判定失败。`);
+      s.log.push(`回合结束：长离下方有堆叠单位，65% 判定失败。`);
     }
   }
 }
